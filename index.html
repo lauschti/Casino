@@ -1,661 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Casino Night — Management System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    /* ══════════════════════════════════════════
-       VARIABLES & RESET
-    ══════════════════════════════════════════ */
     :root {
-      --bg:       #0a0a0f;
-      --surface:  #12121a;
-      --card:     #18181f;
-      --border:   #2a2a38;
-      --gold:     #c9a84c;
-      --gold2:    #e8c96b;
-      --gold-dim: #7a6230;
-      --red:      #c0392b;
-      --red2:     #e74c3c;
-      --green:    #27ae60;
-      --green2:   #52be80;
-      --text:     #e8e0d0;
-      --muted:    #7a7590;
-      --radius:   12px;
-      --hdr:      60px;
+      --bg:#0a0a0f; --surface:#12121a; --card:#18181f; --border:#2a2a38;
+      --gold:#c9a84c; --gold2:#e8c96b; --gold-dim:#7a6230;
+      --red:#c0392b; --red2:#e74c3c; --green:#27ae60; --green2:#52be80;
+      --text:#e8e0d0; --muted:#7a7590; --radius:12px; --hdr:60px;
     }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{-webkit-text-size-adjust:100%}
+    body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;overflow-x:hidden}
+    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { -webkit-text-size-adjust: 100%; }
+    /* CARD */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;position:relative;overflow:hidden}
+    .card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent)}
 
-    body {
-      font-family: 'DM Mono', monospace;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      min-height: 100dvh;
-      overflow-x: hidden;
-    }
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;font-family:'DM Mono',monospace;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;border:none;border-radius:8px;padding:0 1.25rem;height:44px;cursor:pointer;transition:all .18s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+    .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0a0a0f;font-weight:600}
+    .btn-gold:hover{filter:brightness(1.1);box-shadow:0 4px 18px rgba(201,168,76,.3)}
+    .btn-gold:active,.btn-outline:active,.btn-danger:active,.btn-success:active{transform:scale(.97)}
+    .btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
+    .btn-outline:hover{border-color:var(--gold-dim);color:var(--text)}
+    .btn-danger{background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.4);color:var(--red2)}
+    .btn-danger:hover{background:rgba(192,57,43,.22)}
+    .btn-success{background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.4);color:var(--green2)}
+    .btn-success:hover{background:rgba(39,174,96,.22)}
+    .btn-sm{height:36px;padding:0 .9rem;font-size:.7rem}
+    .btn-xs{height:32px;padding:0 .75rem;font-size:.65rem}
+    .btn-block{width:100%}
+    .btn:disabled{opacity:.38;cursor:not-allowed;transform:none!important;filter:none!important}
 
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none; z-index: 0;
-    }
+    /* FORM */
+    .form-group{margin-bottom:1rem}
+    .form-group label{display:block;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.45rem}
+    input[type=text],input[type=number],select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:1rem;padding:0 1rem;height:48px;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none}
+    input:focus,select:focus{border-color:var(--gold-dim)}
+    select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237a7590' d='M6 8L0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem}
+    select option{background:var(--surface)}
 
-    /* ══════════════════════════════════════════
-       SHARED COMPONENTS
-    ══════════════════════════════════════════ */
+    /* BADGES */
+    .badge{display:inline-flex;align-items:center;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;padding:.25rem .7rem;border-radius:99px}
+    .badge-open{background:rgba(39,174,96,.15);color:var(--green2);border:1px solid rgba(39,174,96,.3)}
+    .badge-closed{background:rgba(192,57,43,.15);color:var(--red2);border:1px solid rgba(192,57,43,.3)}
+    .badge-pending{background:rgba(243,156,18,.15);color:#f39c12;border:1px solid rgba(243,156,18,.3)}
+    .badge-win{background:rgba(39,174,96,.15);color:var(--green2);border:1px solid rgba(39,174,96,.3)}
+    .badge-lose{background:rgba(192,57,43,.15);color:var(--red2);border:1px solid rgba(192,57,43,.3)}
+    .role-badge{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;padding:.22rem .65rem;border-radius:99px}
+    .role-badge.admin{background:rgba(201,168,76,.15);color:var(--gold);border:1px solid var(--gold-dim)}
+    .role-badge.staff{background:rgba(52,152,219,.15);color:#5dade2;border:1px solid rgba(52,152,219,.3)}
+    .role-badge.player{background:rgba(39,174,96,.15);color:var(--green2);border:1px solid rgba(39,174,96,.3)}
 
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      position: relative;
-      overflow: hidden;
-    }
-    .card::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
-    }
+    /* TOAST */
+    .toast{position:fixed;bottom:1.25rem;right:1.25rem;left:1.25rem;max-width:360px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-left:3px solid var(--gold);padding:.85rem 1.2rem;border-radius:10px;font-size:.8rem;z-index:9999;animation:slideUp .3s ease;line-height:1.5}
+    .toast.error{border-left-color:var(--red2)}
+    .toast.success{border-left-color:var(--green2)}
+    @keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
 
-    /* ── Buttons ── */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.78rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      border: none;
-      border-radius: 8px;
-      padding: 0 1.25rem;
-      height: 44px;
-      cursor: pointer;
-      transition: all 0.18s;
-      white-space: nowrap;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .btn-gold {
-      background: linear-gradient(135deg, var(--gold), var(--gold2));
-      color: #0a0a0f;
-      font-weight: 600;
-    }
-    .btn-gold:hover  { filter: brightness(1.1); box-shadow: 0 4px 18px rgba(201,168,76,0.3); }
-    .btn-gold:active { transform: scale(0.97); }
+    hr.divider{border:none;border-top:1px solid var(--border);margin:1.5rem 0}
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .empty{text-align:center;padding:3rem 1rem;color:var(--muted)}
+    .empty-icon{font-size:2.5rem;margin-bottom:.75rem;opacity:.3}
+    .empty p{font-size:.8rem;letter-spacing:.05em}
 
-    .btn-outline {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted);
-    }
-    .btn-outline:hover  { border-color: var(--gold-dim); color: var(--text); }
-    .btn-outline:active { transform: scale(0.97); }
+    /* LOGIN */
+    #login-screen{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:1.25rem;position:relative}
+    .login-bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(201,168,76,.12) 0%,transparent 70%),radial-gradient(ellipse 40% 40% at 10% 90%,rgba(201,168,76,.06) 0%,transparent 60%)}
+    .login-box{width:100%;max-width:420px;position:relative;z-index:1}
+    .login-logo{text-align:center;margin-bottom:2.5rem}
+    .login-logo .suit-row{font-size:1.8rem;letter-spacing:.5rem;margin-bottom:.75rem;opacity:.6}
+    .login-logo h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,8vw,2.8rem);font-weight:900;letter-spacing:.04em;background:linear-gradient(135deg,var(--gold),var(--gold2),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+    .login-logo p{font-size:.68rem;letter-spacing:.28em;color:var(--muted);margin-top:.5rem;text-transform:uppercase}
+    .setup-note{margin-top:1rem;padding:1rem;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:.7rem;color:var(--muted);line-height:1.7}
+    .setup-note code{color:var(--gold2);background:rgba(201,168,76,.1);padding:.1em .3em;border-radius:3px}
 
-    .btn-danger {
-      background: rgba(192,57,43,0.12);
-      border: 1px solid rgba(192,57,43,0.4);
-      color: var(--red2);
-    }
-    .btn-danger:hover  { background: rgba(192,57,43,0.22); }
-    .btn-danger:active { transform: scale(0.97); }
+    /* HEADER */
+    #app{display:none;min-height:100vh;position:relative;z-index:1}
+    header{background:rgba(18,18,26,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:0 1.25rem;display:flex;align-items:center;justify-content:space-between;height:var(--hdr);position:sticky;top:0;z-index:200;gap:.75rem}
+    .header-logo{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--gold);letter-spacing:.04em;flex-shrink:0}
+    .header-logo small{display:block;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.22em;color:var(--muted);font-weight:400;margin-top:.05rem}
+    .header-right{display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+    .user-chip{display:flex;align-items:center;gap:.5rem;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:.3rem .8rem .3rem .35rem}
+    .user-avatar{width:28px;height:28px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#0a0a0f;flex-shrink:0}
+    .user-name{font-size:.75rem;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-    .btn-success {
-      background: rgba(39,174,96,0.12);
-      border: 1px solid rgba(39,174,96,0.4);
-      color: var(--green2);
-    }
-    .btn-success:hover  { background: rgba(39,174,96,0.22); }
-    .btn-success:active { transform: scale(0.97); }
+    /* LAYOUT */
+    .main{max-width:1100px;margin:0 auto;padding:1.5rem 1.25rem}
+    .nav-tabs{display:flex;gap:.2rem;margin-bottom:1.75rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.2rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .nav-tabs::-webkit-scrollbar{display:none}
+    .nav-tab{flex-shrink:0;padding:0 1.1rem;height:40px;border-radius:8px;font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:none;color:var(--muted);cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent}
+    .nav-tab:hover{color:var(--text)}
+    .nav-tab.active{background:var(--card);color:var(--gold);box-shadow:0 1px 6px rgba(0,0,0,.4)}
+    .panel{display:none}
+    .panel.active{display:block;animation:fadeUp .28s ease}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .section-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem}
+    .section-title{font-family:'Playfair Display',serif;font-size:clamp(1.2rem,4vw,1.45rem);font-weight:700}
+    .section-title small{display:block;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.18em;color:var(--muted);font-weight:400;margin-top:.15rem;text-transform:uppercase}
+    .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.75rem}
+    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;position:relative;overflow:hidden}
+    .stat-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(201,168,76,.05) 0%,transparent 60%)}
+    .stat-label{font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+    .stat-value{font-family:'Playfair Display',serif;font-size:clamp(1.3rem,5vw,1.8rem);font-weight:700;color:var(--gold);line-height:1}
 
-    .btn-sm  { height: 36px; padding: 0 0.9rem; font-size: 0.7rem; }
-    .btn-xs  { height: 32px; padding: 0 0.75rem; font-size: 0.65rem; }
-    .btn-block { width: 100%; }
-    .btn:disabled { opacity: 0.38; cursor: not-allowed; transform: none !important; filter: none !important; }
+    /* GAME GRID */
+    .game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:.85rem;margin-bottom:1.5rem}
+    .game-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none}
+    .game-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(201,168,76,.06),transparent);opacity:0;transition:opacity .18s}
+    .game-card:hover{border-color:var(--gold-dim);transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.3)}
+    .game-card:hover::before{opacity:1}
+    .game-card:active{transform:scale(.97)}
+    .game-card.selected{border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,168,76,.22)}
+    .game-card.selected::before{opacity:1}
+    .game-card.disabled{opacity:.45;cursor:default;pointer-events:none}
+    .game-icon{font-size:1.8rem;margin-bottom:.6rem;line-height:1}
+    .game-name{font-family:'Playfair Display',serif;font-size:.95rem;margin-bottom:.5rem;line-height:1.3}
 
-    /* ── Form ── */
-    .form-group { margin-bottom: 1rem; }
-    .form-group label {
-      display: block;
-      font-size: 0.62rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.45rem;
-    }
-    input[type="text"],
-    input[type="number"],
-    select {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: 'DM Mono', monospace;
-      font-size: 1rem;
-      padding: 0 1rem;
-      height: 48px;
-      outline: none;
-      transition: border-color 0.2s;
-      -webkit-appearance: none;
-      appearance: none;
-    }
-    input:focus, select:focus { border-color: var(--gold-dim); }
-    select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237a7590' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 1rem center;
-      padding-right: 2.5rem;
-    }
-    select option { background: var(--surface); }
+    /* BET PANEL */
+    .bet-panel{background:var(--card);border:1px solid var(--gold-dim);border-radius:var(--radius);padding:1.5rem;margin-top:.25rem;margin-bottom:1.5rem;box-shadow:0 0 30px rgba(201,168,76,.06)}
+    .btn-row{display:flex;gap:.65rem;flex-wrap:wrap}
+    .btn-row .btn{flex:1;min-width:120px}
 
-    /* ── Badges ── */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      font-size: 0.6rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding: 0.25rem 0.7rem;
-      border-radius: 99px;
-    }
-    .badge-open    { background: rgba(39,174,96,0.15);  color: var(--green2); border: 1px solid rgba(39,174,96,0.3); }
-    .badge-closed  { background: rgba(192,57,43,0.15);  color: var(--red2);   border: 1px solid rgba(192,57,43,0.3); }
-    .badge-pending { background: rgba(243,156,18,0.15); color: #f39c12;       border: 1px solid rgba(243,156,18,0.3); }
-    .badge-win     { background: rgba(39,174,96,0.15);  color: var(--green2); border: 1px solid rgba(39,174,96,0.3); }
-    .badge-lose    { background: rgba(192,57,43,0.15);  color: var(--red2);   border: 1px solid rgba(192,57,43,0.3); }
+    /* TABLE + MOBILE CARDS */
+    .table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+    table{width:100%;border-collapse:collapse}
+    thead th{background:var(--surface);padding:.7rem 1rem;text-align:left;font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
+    tbody tr{border-bottom:1px solid rgba(42,42,56,.7);transition:background .12s}
+    tbody tr:last-child{border-bottom:none}
+    tbody tr:hover{background:rgba(201,168,76,.025)}
+    tbody td{padding:.8rem 1rem;font-size:.82rem;vertical-align:middle}
+    .m-list{display:none}
+    .m-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:.65rem}
+    .m-card:last-child{margin-bottom:0}
+    .m-row{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.45rem}
+    .m-row:last-child{margin-bottom:0}
+    .m-label{font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);flex-shrink:0}
+    .m-val{font-size:.82rem;text-align:right}
+    .m-actions{display:flex;gap:.5rem;margin-top:.85rem;flex-wrap:wrap}
+    .m-actions .btn{flex:1;min-width:80px}
 
-    .role-badge {
-      font-size: 0.6rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      padding: 0.22rem 0.65rem;
-      border-radius: 99px;
-    }
-    .role-badge.admin  { background: rgba(201,168,76,0.15); color: var(--gold);   border: 1px solid var(--gold-dim); }
-    .role-badge.staff  { background: rgba(52,152,219,0.15); color: #5dade2;       border: 1px solid rgba(52,152,219,0.3); }
-    .role-badge.player { background: rgba(39,174,96,0.15);  color: var(--green2); border: 1px solid rgba(39,174,96,0.3); }
+    /* MODAL */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:1000}
+    .modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;padding:1.75rem 1.5rem calc(1.75rem + env(safe-area-inset-bottom));width:100%;max-width:540px;max-height:92vh;overflow-y:auto;position:relative;animation:slideModal .28s cubic-bezier(.32,1.2,.5,1)}
+    @keyframes slideModal{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .modal-handle{width:40px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 1.5rem}
+    .modal-title{font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:1.5rem;color:var(--gold)}
+    .modal-close{position:absolute;top:1rem;right:1rem;background:var(--surface);border:1px solid var(--border);width:34px;height:34px;border-radius:50%;color:var(--muted);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .modal-close:hover{color:var(--text)}
+    .sub-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap}
+    .sub-tab{padding:0 1rem;height:38px;border-radius:8px;font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;background:var(--surface);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .18s;-webkit-tap-highlight-color:transparent}
+    .sub-tab:hover{border-color:var(--gold-dim);color:var(--text)}
+    .sub-tab.active{background:var(--card);border-color:var(--gold-dim);color:var(--gold)}
 
-    /* ── Toast ── */
-    .toast {
-      position: fixed;
-      bottom: 1.25rem;
-      right: 1.25rem;
-      left: 1.25rem;
-      max-width: 360px;
-      margin: 0 auto;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--gold);
-      padding: 0.85rem 1.2rem;
-      border-radius: 10px;
-      font-size: 0.8rem;
-      z-index: 9999;
-      animation: slideUp 0.3s ease;
-      line-height: 1.5;
-    }
-    .toast.error   { border-left-color: var(--red2); }
-    .toast.success { border-left-color: var(--green2); }
-    @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    /* RT DOT */
+    #rt-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block;transition:background .4s;background:var(--muted)}
 
-    /* ── Divider ── */
-    hr.divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+    @keyframes balancePop{0%{transform:scale(1)}40%{transform:scale(1.18);color:var(--gold2)}100%{transform:scale(1)}}
+    .balance-pop{animation:balancePop .45s ease}
+    ::-webkit-scrollbar{width:4px;height:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
 
-    /* ── Spinner ── */
-    .spinner {
-      display: inline-block;
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.2);
-      border-top-color: currentColor;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Empty state ── */
-    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
-    .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.3; }
-    .empty p { font-size: 0.8rem; letter-spacing: 0.05em; }
-
-    /* ══════════════════════════════════════════
-       LOGIN
-    ══════════════════════════════════════════ */
-    #login-screen {
-      min-height: 100vh;
-      min-height: 100dvh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.25rem;
-      position: relative;
-    }
-    .login-bg {
-      position: fixed; inset: 0;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(201,168,76,0.12) 0%, transparent 70%),
-        radial-gradient(ellipse 40% 40% at 10% 90%, rgba(201,168,76,0.06) 0%, transparent 60%);
-    }
-    .login-box { width: 100%; max-width: 420px; position: relative; z-index: 1; }
-    .login-logo { text-align: center; margin-bottom: 2.5rem; }
-    .login-logo .suit-row { font-size: 1.8rem; letter-spacing: 0.5rem; margin-bottom: 0.75rem; opacity: 0.6; }
-    .login-logo h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(2.2rem, 8vw, 2.8rem);
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      background: linear-gradient(135deg, var(--gold), var(--gold2), var(--gold));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-      line-height: 1;
-    }
-    .login-logo p { font-size: 0.68rem; letter-spacing: 0.28em; color: var(--muted); margin-top: 0.5rem; text-transform: uppercase; }
-    .setup-note {
-      margin-top: 1rem;
-      padding: 1rem;
-      background: rgba(201,168,76,0.06);
-      border: 1px solid rgba(201,168,76,0.2);
-      border-radius: 8px;
-      font-size: 0.7rem;
-      color: var(--muted);
-      line-height: 1.7;
-    }
-    .setup-note code { color: var(--gold2); background: rgba(201,168,76,0.1); padding: 0.1em 0.3em; border-radius: 3px; }
-
-    /* ══════════════════════════════════════════
-       HEADER
-    ══════════════════════════════════════════ */
-    #app { display: none; min-height: 100vh; position: relative; z-index: 1; }
-
-    header {
-      background: rgba(18,18,26,0.96);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      padding: 0 1.25rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: var(--hdr);
-      position: sticky;
-      top: 0; z-index: 200;
-      gap: 0.75rem;
-    }
-    .header-logo {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: var(--gold);
-      letter-spacing: 0.04em;
-      flex-shrink: 0;
-    }
-    .header-logo small {
-      display: block;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.58rem;
-      letter-spacing: 0.22em;
-      color: var(--muted);
-      font-weight: 400;
-      margin-top: 0.05rem;
-    }
-    .header-right { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
-    .user-chip {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 99px;
-      padding: 0.3rem 0.8rem 0.3rem 0.35rem;
-    }
-    .user-avatar {
-      width: 28px; height: 28px;
-      background: linear-gradient(135deg, var(--gold), var(--gold2));
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.7rem; font-weight: 700; color: #0a0a0f;
-      flex-shrink: 0;
-    }
-    .user-name { font-size: 0.75rem; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    /* ══════════════════════════════════════════
-       LAYOUT
-    ══════════════════════════════════════════ */
-    .main { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.25rem; }
-
-    .nav-tabs {
-      display: flex;
-      gap: 0.2rem;
-      margin-bottom: 1.75rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0.2rem;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
-    .nav-tabs::-webkit-scrollbar { display: none; }
-    .nav-tab {
-      flex-shrink: 0;
-      padding: 0 1.1rem;
-      height: 40px;
-      border-radius: 8px;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.72rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.18s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .nav-tab:hover  { color: var(--text); }
-    .nav-tab.active { background: var(--card); color: var(--gold); box-shadow: 0 1px 6px rgba(0,0,0,0.4); }
-
-    .panel { display: none; }
-    .panel.active { display: block; animation: fadeUp 0.28s ease; }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-
-    .section-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-bottom: 1.25rem;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-    .section-title {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(1.2rem, 4vw, 1.45rem);
-      font-weight: 700;
-    }
-    .section-title small {
-      display: block;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.62rem;
-      letter-spacing: 0.18em;
-      color: var(--muted);
-      font-weight: 400;
-      margin-top: 0.15rem;
-      text-transform: uppercase;
-    }
-
-    /* Stat row */
-    .stat-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.75rem;
-      margin-bottom: 1.75rem;
-    }
-    .stat-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1rem 1.1rem;
-      position: relative;
-      overflow: hidden;
-    }
-    .stat-card::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(201,168,76,0.05) 0%, transparent 60%);
-    }
-    .stat-label { font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
-    .stat-value {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(1.3rem, 5vw, 1.8rem);
-      font-weight: 700;
-      color: var(--gold);
-      line-height: 1;
-    }
-
-    /* ══════════════════════════════════════════
-       GAME GRID
-    ══════════════════════════════════════════ */
-    .game-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
-      gap: 0.85rem;
-      margin-bottom: 1.5rem;
-    }
-    .game-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.1rem;
-      cursor: pointer;
-      transition: all 0.18s;
-      position: relative;
-      overflow: hidden;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-    .game-card::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(201,168,76,0.06), transparent);
-      opacity: 0;
-      transition: opacity 0.18s;
-    }
-    .game-card:hover  { border-color: var(--gold-dim); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
-    .game-card:hover::before { opacity: 1; }
-    .game-card:active { transform: scale(0.97); }
-    .game-card.selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,168,76,0.22); }
-    .game-card.selected::before { opacity: 1; }
-    .game-card.disabled { opacity: 0.45; cursor: default; pointer-events: none; }
-    .game-icon { font-size: 1.8rem; margin-bottom: 0.6rem; line-height: 1; }
-    .game-name { font-family: 'Playfair Display', serif; font-size: 0.95rem; margin-bottom: 0.5rem; line-height: 1.3; }
-
-    /* ══════════════════════════════════════════
-       BET PANEL
-    ══════════════════════════════════════════ */
-    .bet-panel {
-      background: var(--card);
-      border: 1px solid var(--gold-dim);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      margin-top: 0.25rem;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 0 30px rgba(201,168,76,0.06);
-    }
-    .btn-row { display: flex; gap: 0.65rem; flex-wrap: wrap; }
-    .btn-row .btn { flex: 1; min-width: 120px; }
-
-    /* ══════════════════════════════════════════
-       TABLES  (desktop) + CARD LIST (mobile)
-    ══════════════════════════════════════════ */
-    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-      background: var(--surface);
-      padding: 0.7rem 1rem;
-      text-align: left;
-      font-size: 0.6rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--muted);
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-    tbody tr { border-bottom: 1px solid rgba(42,42,56,0.7); transition: background 0.12s; }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: rgba(201,168,76,0.025); }
-    tbody td { padding: 0.8rem 1rem; font-size: 0.82rem; vertical-align: middle; }
-
-    /* Mobile card list — hidden on desktop */
-    .m-list { display: none; }
-    .m-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1rem 1.1rem;
-      margin-bottom: 0.65rem;
-    }
-    .m-card:last-child { margin-bottom: 0; }
-    .m-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem; }
-    .m-row:last-child { margin-bottom: 0; }
-    .m-label { font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
-    .m-val   { font-size: 0.82rem; text-align: right; }
-    .m-actions { display: flex; gap: 0.5rem; margin-top: 0.85rem; flex-wrap: wrap; }
-    .m-actions .btn { flex: 1; min-width: 80px; }
-
-    /* ══════════════════════════════════════════
-       MODAL  (sheet on mobile, centered on desktop)
-    ══════════════════════════════════════════ */
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.72);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      z-index: 1000;
-    }
-    .modal {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius) var(--radius) 0 0;
-      padding: 1.75rem 1.5rem calc(1.75rem + env(safe-area-inset-bottom));
-      width: 100%;
-      max-width: 540px;
-      max-height: 92vh;
-      overflow-y: auto;
-      position: relative;
-      animation: slideModal 0.28s cubic-bezier(.32,1.2,.5,1);
-    }
-    @keyframes slideModal { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    .modal-handle {
-      width: 40px; height: 4px;
-      background: var(--border);
-      border-radius: 99px;
-      margin: 0 auto 1.5rem;
-    }
-    .modal-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.4rem;
-      margin-bottom: 1.5rem;
-      color: var(--gold);
-    }
-    .modal-close {
-      position: absolute;
-      top: 1rem; right: 1rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      width: 34px; height: 34px;
-      border-radius: 50%;
-      color: var(--muted);
-      font-size: 1rem;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .modal-close:hover { color: var(--text); }
-
-    /* ── Admin sub-tabs ── */
-    .sub-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-    .sub-tab {
-      padding: 0 1rem;
-      height: 38px;
-      border-radius: 8px;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.18s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .sub-tab:hover  { border-color: var(--gold-dim); color: var(--text); }
-    .sub-tab.active { background: var(--card); border-color: var(--gold-dim); color: var(--gold); }
-
-    /* ══════════════════════════════════════════
-       BALANCE ANIMATION
-    ══════════════════════════════════════════ */
-    @keyframes balancePop {
-      0%   { transform: scale(1); }
-      40%  { transform: scale(1.18); color: var(--gold2); }
-      100% { transform: scale(1); }
-    }
-    .balance-pop { animation: balancePop 0.45s ease; }
-
-    /* ══════════════════════════════════════════
-       SCROLLBAR
-    ══════════════════════════════════════════ */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
-
-    /* ══════════════════════════════════════════
-       RESPONSIVE BREAKPOINTS
-    ══════════════════════════════════════════ */
-
-    /* ── ≤768px: switch to mobile card lists ── */
-    @media (max-width: 768px) {
-      .table-wrap { display: none; }
-      .m-list     { display: block; }
-      .game-grid  { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
-    }
-
-    /* ── ≤480px: compact everything ── */
-    @media (max-width: 480px) {
-      .main { padding: 1rem; }
-      header { padding: 0 1rem; height: 56px; --hdr: 56px; }
-      .header-logo small { display: none; }
-
-      .stat-row  { gap: 0.5rem; }
-      .stat-card { padding: 0.8rem 0.85rem; }
-      .stat-label { font-size: 0.52rem; }
-
-      .game-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
-      .game-icon { font-size: 1.5rem; }
-      .game-name { font-size: 0.88rem; }
-
-      .nav-tabs { margin-bottom: 1.25rem; }
-      .nav-tab  { font-size: 0.68rem; padding: 0 0.85rem; }
-
-      .section-header { flex-direction: column; align-items: flex-start; }
-
-      .bet-panel { padding: 1.1rem; }
-    }
-
-    /* ── Desktop modal: centered, not bottom-sheet ── */
-    @media (min-width: 769px) {
-      .modal-overlay { align-items: center; padding: 1.25rem; }
-      .modal {
-        border-radius: var(--radius);
-        max-width: 480px;
-        padding: 2rem;
-        animation: fadeModal 0.22s ease;
-      }
-      .modal-handle { display: none; }
-      @keyframes fadeModal {
-        from { opacity: 0; transform: scale(0.96); }
-        to   { opacity: 1; transform: scale(1); }
-      }
-    }
+    @media(max-width:768px){.table-wrap{display:none}.m-list{display:block}.game-grid{grid-template-columns:repeat(auto-fill,minmax(135px,1fr))}}
+    @media(max-width:480px){.main{padding:1rem}header{padding:0 1rem;height:56px;--hdr:56px}.header-logo small{display:none}.stat-row{gap:.5rem}.stat-card{padding:.8rem .85rem}.stat-label{font-size:.52rem}.game-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}.game-icon{font-size:1.5rem}.game-name{font-size:.88rem}.nav-tabs{margin-bottom:1.25rem}.nav-tab{font-size:.68rem;padding:0 .85rem}.section-header{flex-direction:column;align-items:flex-start}.bet-panel{padding:1.1rem}}
+    @media(min-width:769px){.modal-overlay{align-items:center;padding:1.25rem}.modal{border-radius:var(--radius);max-width:480px;padding:2rem;animation:fadeModal .22s ease}.modal-handle{display:none}@keyframes fadeModal{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}}
   </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════
-     LOGIN SCREEN
-══════════════════════════════════════════ -->
+<!-- LOGIN -->
 <div id="login-screen">
   <div class="login-bg"></div>
   <div class="login-box">
@@ -664,967 +185,825 @@
       <h1>Casino Night</h1>
       <p>Management System</p>
     </div>
-
     <div class="card">
       <div class="form-group">
         <label>Your Name</label>
-        <input type="text" id="login-name" placeholder="Enter your name…"
-               autocomplete="off" autocorrect="off" spellcheck="false"/>
+        <input type="text" id="login-name" placeholder="Enter your name…" autocomplete="off" autocorrect="off" spellcheck="false"/>
       </div>
-      <button class="btn btn-gold btn-block" id="login-btn" onclick="handleLogin()">
-        Enter the Floor
-      </button>
+      <button class="btn btn-gold btn-block" id="login-btn">Enter the Floor</button>
       <hr class="divider">
-      <p style="font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.7;">
-        New here? A player account is created automatically.<br>
-        Admins &amp; Staff are assigned by the admin.
-      </p>
+      <p style="font-size:.7rem;color:var(--muted);text-align:center;line-height:1.7;">New here? A player account is created automatically.<br>Admins &amp; Staff are assigned by the admin.</p>
     </div>
-
-    <div class="setup-note">
-      ⚠️ <strong style="color:var(--gold)">Setup required:</strong> Open <code>index.html</code> and set<br>
-      <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code>
-      near the top of the &lt;script&gt; tag.
-    </div>
+    <div class="setup-note">⚠️ <strong style="color:var(--gold)">Setup required:</strong> Open <code>index.html</code> and set<br><code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> near the top of the &lt;script&gt; tag.</div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
-     APP SHELL
-══════════════════════════════════════════ -->
+<!-- APP -->
 <div id="app">
   <header>
-    <div class="header-logo">
-      ♠ Casino Night
-      <small>Management System</small>
-    </div>
+    <div class="header-logo">♠ Casino Night<small>Management System</small></div>
     <div class="header-right">
+      <span id="rt-dot" title="Realtime status"></span>
       <div class="user-chip">
         <div class="user-avatar" id="hdr-avatar">?</div>
         <span class="user-name" id="hdr-name">—</span>
       </div>
       <span class="role-badge" id="hdr-role">—</span>
-      <button class="btn btn-outline btn-sm" onclick="logout()">Out</button>
+      <button class="btn btn-outline btn-sm" id="logout-btn">Out</button>
     </div>
   </header>
-
   <div class="main">
     <div class="nav-tabs" id="nav-tabs"></div>
 
-    <!-- ══════════ PLAYER PANEL ══════════ -->
+    <!-- PLAYER -->
     <div class="panel" id="panel-player">
-
       <div class="stat-row">
-        <div class="stat-card">
-          <div class="stat-label">Balance</div>
-          <div class="stat-value" id="player-balance">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Active</div>
-          <div class="stat-value" id="player-active-bets">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Won</div>
-          <div class="stat-value" id="player-total-won">0</div>
-        </div>
+        <div class="stat-card"><div class="stat-label">Balance</div><div class="stat-value" id="player-balance">—</div></div>
+        <div class="stat-card"><div class="stat-label">Active</div><div class="stat-value" id="player-active-bets">0</div></div>
+        <div class="stat-card"><div class="stat-label">Won</div><div class="stat-value" id="player-total-won">0</div></div>
       </div>
-
-      <div class="section-header">
-        <div class="section-title">Games <small>Tap a game to bet</small></div>
-      </div>
-      <div class="game-grid" id="player-game-grid">
-        <div class="empty"><div class="empty-icon">🎰</div><p>Loading…</p></div>
-      </div>
-
+      <div class="section-header"><div class="section-title">Games<small>Tap a game to bet</small></div></div>
+      <div class="game-grid" id="player-game-grid"><div class="empty"><div class="empty-icon">🎰</div><p>Loading…</p></div></div>
       <div class="bet-panel" id="bet-panel" style="display:none;">
-        <div class="section-header" style="margin-bottom:1rem;">
-          <div class="section-title" id="bet-game-name" style="font-size:1.1rem;">Place Bet</div>
-        </div>
-        <div class="form-group">
-          <label>Amount (chips)</label>
-          <input type="number" id="bet-amount" placeholder="Enter amount…" min="1" inputmode="numeric"/>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-gold" onclick="placeBet()">Place Bet ♠</button>
-          <button class="btn btn-outline" onclick="cancelBet()">Cancel</button>
-        </div>
+        <div class="section-header" style="margin-bottom:1rem;"><div class="section-title" id="bet-game-name" style="font-size:1.1rem;">Place Bet</div></div>
+        <div class="form-group"><label>Amount (chips)</label><input type="number" id="bet-amount" placeholder="Enter amount…" min="1" inputmode="numeric"/></div>
+        <div class="btn-row"><button class="btn btn-gold" id="place-bet-btn">Place Bet ♠</button><button class="btn btn-outline" id="cancel-bet-btn">Cancel</button></div>
       </div>
-
       <hr class="divider">
-      <div class="section-header">
-        <div class="section-title">My Bets <small>Your history</small></div>
-      </div>
-
-      <!-- Desktop -->
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Game</th><th>Amount</th><th>Result</th></tr></thead>
-          <tbody id="player-bets-desk"></tbody>
-        </table>
-      </div>
-      <!-- Mobile -->
+      <div class="section-header"><div class="section-title">My Bets<small>Your history</small></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Game</th><th>Amount</th><th>Result</th></tr></thead><tbody id="player-bets-desk"></tbody></table></div>
       <div class="m-list" id="player-bets-mob"></div>
     </div>
 
-    <!-- ══════════ STAFF PANEL ══════════ -->
+    <!-- STAFF -->
     <div class="panel" id="panel-staff">
-
-      <div class="section-header">
-        <div class="section-title">Manage Round <small>Select a game</small></div>
-      </div>
-      <div class="game-grid" id="staff-game-grid">
-        <div class="empty"><div class="empty-icon">🎰</div><p>Loading…</p></div>
-      </div>
-
-      <div id="staff-round-panel" style="display:none;margin-top:0.5rem;">
+      <div class="section-header"><div class="section-title">Manage Round<small>Select a game</small></div></div>
+      <div class="game-grid" id="staff-game-grid"><div class="empty"><div class="empty-icon">🎰</div><p>Loading…</p></div></div>
+      <div id="staff-round-panel" style="display:none;margin-top:.5rem;">
         <div class="section-header">
           <div class="section-title" id="staff-game-name">Round</div>
-          <button class="btn btn-danger btn-sm" id="staff-close-btn" onclick="closeRound()">Close Round</button>
+          <button class="btn btn-danger btn-sm" id="staff-close-btn">Close Round</button>
         </div>
-
-        <!-- Desktop -->
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Player</th><th>Amount</th><th>Result</th><th>Action</th></tr></thead>
-            <tbody id="staff-bets-desk"></tbody>
-          </table>
-        </div>
-        <!-- Mobile -->
+        <div class="table-wrap"><table><thead><tr><th>Player</th><th>Amount</th><th>Result</th><th>Action</th></tr></thead><tbody id="staff-bets-desk"></tbody></table></div>
         <div class="m-list" id="staff-bets-mob"></div>
       </div>
     </div>
 
-    <!-- ══════════ ADMIN PANEL ══════════ -->
+    <!-- ADMIN -->
     <div class="panel" id="panel-admin">
-
       <div class="sub-tabs">
-        <button class="sub-tab active" data-sub="games" onclick="switchAdminSub('games')">♣ Games</button>
-        <button class="sub-tab"        data-sub="users" onclick="switchAdminSub('users')">♥ Users</button>
+        <button class="sub-tab active" id="sub-tab-games">♣ Games</button>
+        <button class="sub-tab" id="sub-tab-users">♥ Users</button>
       </div>
-
-      <!-- Admin: Games -->
       <div id="admin-sub-games">
         <div class="section-header">
-          <div class="section-title">Games <small>Create &amp; manage</small></div>
-          <button class="btn btn-gold btn-sm" onclick="showModal('modal-create-game')">+ New Game</button>
+          <div class="section-title">Games<small>Create &amp; manage</small></div>
+          <button class="btn btn-gold btn-sm" id="new-game-btn">+ New Game</button>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody id="admin-games-desk"></tbody>
-          </table>
-        </div>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Status</th><th>Actions</th></tr></thead><tbody id="admin-games-desk"></tbody></table></div>
         <div class="m-list" id="admin-games-mob"></div>
       </div>
-
-      <!-- Admin: Users -->
       <div id="admin-sub-users" style="display:none;">
-        <div class="section-header">
-          <div class="section-title">Users <small>Roles &amp; balances</small></div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Name</th><th>Role</th><th>Balance</th><th>Edit</th></tr></thead>
-            <tbody id="admin-users-desk"></tbody>
-          </table>
-        </div>
+        <div class="section-header"><div class="section-title">Users<small>Roles &amp; balances</small></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Balance</th><th>Edit</th></tr></thead><tbody id="admin-users-desk"></tbody></table></div>
         <div class="m-list" id="admin-users-mob"></div>
       </div>
-
-    </div>
-  </div><!-- /main -->
-</div><!-- /app -->
-
-<!-- ══════════════════════════════════════════
-     MODALS
-══════════════════════════════════════════ -->
-<div class="modal-overlay" id="modal-create-game" style="display:none;"
-     onclick="bgClose(event,'modal-create-game')">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <button class="modal-close" onclick="closeModal('modal-create-game')">✕</button>
-    <div class="modal-title">New Game</div>
-    <div class="form-group">
-      <label>Game Name</label>
-      <input type="text" id="new-game-name" placeholder="e.g. Blackjack Table #1"/>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-gold" onclick="createGame()">Create Game</button>
-      <button class="btn btn-outline" onclick="closeModal('modal-create-game')">Cancel</button>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-edit-user" style="display:none;"
-     onclick="bgClose(event,'modal-edit-user')">
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-create-game" style="display:none;">
   <div class="modal">
     <div class="modal-handle"></div>
-    <button class="modal-close" onclick="closeModal('modal-edit-user')">✕</button>
+    <button class="modal-close" id="close-create-game-modal">✕</button>
+    <div class="modal-title">New Game</div>
+    <div class="form-group"><label>Game Name</label><input type="text" id="new-game-name" placeholder="e.g. Blackjack Table #1"/></div>
+    <div class="btn-row"><button class="btn btn-gold" id="create-game-btn">Create Game</button><button class="btn btn-outline" id="cancel-create-game-btn">Cancel</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-user" style="display:none;">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" id="close-edit-user-modal">✕</button>
     <div class="modal-title">Edit User</div>
     <input type="hidden" id="edit-user-id"/>
-    <div class="form-group">
-      <label>Name</label>
-      <input type="text" id="edit-user-name" disabled style="opacity:0.5;"/>
-    </div>
-    <div class="form-group">
-      <label>Role</label>
-      <select id="edit-user-role">
-        <option value="player">Player</option>
-        <option value="staff">Staff</option>
-        <option value="admin">Admin</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Balance (chips)</label>
-      <input type="number" id="edit-user-balance" min="0" inputmode="numeric"/>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-gold" onclick="saveUser()">Save Changes</button>
-      <button class="btn btn-outline" onclick="closeModal('modal-edit-user')">Cancel</button>
-    </div>
+    <div class="form-group"><label>Name</label><input type="text" id="edit-user-name" disabled style="opacity:.5"/></div>
+    <div class="form-group"><label>Role</label><select id="edit-user-role"><option value="player">Player</option><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+    <div class="form-group"><label>Balance (chips)</label><input type="number" id="edit-user-balance" min="0" inputmode="numeric"/></div>
+    <div class="btn-row"><button class="btn btn-gold" id="save-user-btn">Save Changes</button><button class="btn btn-outline" id="cancel-edit-user-btn">Cancel</button></div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
-     JAVASCRIPT
-══════════════════════════════════════════ -->
+<!-- Supabase LAST so it's definitely loaded before our script -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ┌─────────────────────────────────────────────────────────────┐
-// │              PASTE YOUR SUPABASE KEYS HERE                  │
-// └─────────────────────────────────────────────────────────────┘
-const SUPABASE_URL      = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ════════════════════════════════════════════════════════
+//   CONFIGURE SUPABASE KEYS HERE
+// ════════════════════════════════════════════════════════
+var SUPABASE_URL      = 'YOUR_SUPABASE_URL';
+var SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ── Everything runs AFTER window.onload so all scripts
+//    and DOM elements are guaranteed to be ready ──────
+window.onload = function() {
 
-let currentUser       = null;
-let selectedGame      = null;   // player bet selection
-let staffSelectedGame = null;   // staff game selection
-let realtimeChannel   = null;
+  // Init Supabase
+  var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ══════════════════════════════════════════
-// AUTH
-// ══════════════════════════════════════════
+  // App state
+  var currentUser       = null;
+  var selectedGame      = null;
+  var staffSelectedGame = null;
+  var realtimeChannel   = null;
+  var pollTimer         = null;
+  var realtimeOk        = false;
+  var toastTimer        = null;
 
-async function handleLogin() {
-  const name = document.getElementById('login-name').value.trim();
-  if (!name) return toast('Please enter your name.', 'error');
+  // ════════════════════════════════════════════════════
+  //  HELPERS
+  // ════════════════════════════════════════════════════
 
-  const btn = document.getElementById('login-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Entering…';
-
-  try {
-    let { data: existing } = await sb
-      .from('users').select('*').ilike('name', name).maybeSingle();
-
-    if (!existing) {
-      const { data: created, error } = await sb
-        .from('users')
-        .insert({ name, role: 'player', balance: 500 })
-        .select().single();
-      if (error) throw error;
-      existing = created;
-    }
-    currentUser = existing;
-    saveSession();
-    initApp();
-  } catch (err) {
-    toast(err.message || 'Login failed.', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Enter the Floor';
-  }
-}
-
-document.getElementById('login-name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') handleLogin();
-});
-
-function logout() {
-  stopPolling();
-  if (realtimeChannel) sb.removeChannel(realtimeChannel);
-  currentUser = null; selectedGame = null; staffSelectedGame = null;
-  clearSession();
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-name').value = '';
-}
-
-// ── Session persistence via localStorage ──
-function saveSession() {
-  try { localStorage.setItem('casino_session', JSON.stringify(currentUser)); } catch(_) {}
-}
-function clearSession() {
-  try { localStorage.removeItem('casino_session'); } catch(_) {}
-}
-async function tryAutoLogin() {
-  try {
-    const raw = localStorage.getItem('casino_session');
-    if (!raw) return false;
-    const saved = JSON.parse(raw);
-    if (!saved?.id) return false;
-    // Refresh from DB to get latest role/balance
-    const { data, error } = await sb.from('users').select('*').eq('id', saved.id).maybeSingle();
-    if (error || !data) { clearSession(); return false; }
-    currentUser = data;
-    saveSession();
-    return true;
-  } catch(_) { return false; }
-}
-
-
-
-// ══════════════════════════════════════════
-// APP INIT
-// ══════════════════════════════════════════
-
-function initApp() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-
-  document.getElementById('hdr-avatar').textContent = currentUser.name[0].toUpperCase();
-  document.getElementById('hdr-name').textContent   = currentUser.name;
-  const rb = document.getElementById('hdr-role');
-  rb.textContent = currentUser.role;
-  rb.className   = `role-badge ${currentUser.role}`;
-
-  buildNav();
-  setupRealtime();
-  loadFirstPanel();
-}
-
-function buildNav() {
-  const tabs = document.getElementById('nav-tabs');
-  tabs.innerHTML = '';
-  const r = currentUser.role;
-  const panels = [];
-  if (r === 'player' || r === 'admin') panels.push({ id: 'player', label: '♠ My Table' });
-  if (r === 'staff'  || r === 'admin') panels.push({ id: 'staff',  label: '♦ Staff' });
-  if (r === 'admin')                   panels.push({ id: 'admin',  label: '♣ Admin' });
-
-  panels.forEach((p, i) => {
-    const btn = document.createElement('button');
-    btn.className    = 'nav-tab' + (i === 0 ? ' active' : '');
-    btn.textContent  = p.label;
-    btn.dataset.panel = p.id;
-    btn.onclick = () => switchPanel(p.id);
-    tabs.appendChild(btn);
-  });
-}
-
-function switchPanel(id) {
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === id));
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${id}`));
-  loadPanel(id);
-}
-
-function loadFirstPanel() {
-  const first = document.querySelector('.nav-tab');
-  if (first) switchPanel(first.dataset.panel);
-}
-
-function loadPanel(id) {
-  if (id === 'player') loadPlayerPanel();
-  if (id === 'staff')  loadStaffPanel();
-  if (id === 'admin')  loadAdminPanel();
-}
-
-function activePanel() {
-  const t = document.querySelector('.nav-tab.active');
-  return t ? t.dataset.panel : null;
-}
-
-// ══════════════════════════════════════════
-// REALTIME SUBSCRIPTIONS + POLLING FALLBACK
-// ══════════════════════════════════════════
-
-let _pollInterval  = null;
-let _realtimeOk    = false;   // true once WebSocket confirms SUBSCRIBED
-let _rtStatusEl    = null;    // small indicator dot in header
-
-function setupRealtime() {
-  // Use a unique channel name per session to avoid stale subscriptions
-  const channelName = `casino-rt-${currentUser.id}`;
-
-  realtimeChannel = sb.channel(channelName)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, payload => {
-      if (payload.new && payload.new.id === currentUser.id) {
-        animateBalance(currentUser.balance, payload.new.balance);
-        currentUser.balance = payload.new.balance;
-        currentUser.role    = payload.new.role;
-        saveSession();
-      }
-      if (activePanel() === 'admin') loadAdminUsers();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'bets' }, () => {
-      const p = activePanel();
-      if (p === 'player') loadPlayerPanel();
-      if (p === 'staff' && staffSelectedGame) loadStaffBets(staffSelectedGame.id);
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => {
-      const p = activePanel();
-      if (p === 'player') loadPlayerPanel();
-      if (p === 'staff')  refreshStaffGameGrid();
-      if (p === 'admin')  loadAdminGames();
-    })
-    .subscribe(status => {
-      _realtimeOk = (status === 'SUBSCRIBED');
-      updateRtIndicator(status);
-
-      if (status === 'SUBSCRIBED') {
-        // WebSocket is live — stop polling if it was running
-        stopPolling();
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        // WebSocket failed — start polling fallback
-        startPolling();
-      }
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
     });
+  }
 
-  // Safety net: if no SUBSCRIBED within 5 s, start polling anyway
-  setTimeout(() => { if (!_realtimeOk) startPolling(); }, 5000);
-}
+  function chips(n) {
+    if (n == null) return '—';
+    return '⬡\u202f' + Number(n).toLocaleString();
+  }
 
-// ── Polling fallback (fires every 4 s when WebSocket is unavailable) ──
-function startPolling() {
-  if (_pollInterval) return;   // already running
-  console.info('[Casino] Realtime unavailable — switching to polling fallback.');
-  _pollInterval = setInterval(() => {
-    const p = activePanel();
-    if (!p || !currentUser) return;
-    if (p === 'player') loadPlayerPanel();
-    if (p === 'staff') {
-      refreshStaffGameGrid();
-      if (staffSelectedGame) loadStaffBets(staffSelectedGame.id);
+  function toast(msg, type) {
+    document.querySelectorAll('.toast').forEach(function(e){e.remove();});
+    var el = document.createElement('div');
+    el.className   = 'toast ' + (type || '');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.remove(); }, 3400);
+  }
+
+  function showModal(id)  { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+  function activePanel() {
+    var t = document.querySelector('.nav-tab.active');
+    return t ? t.dataset.panel : null;
+  }
+
+  // ════════════════════════════════════════════════════
+  //  SESSION (localStorage)
+  // ════════════════════════════════════════════════════
+
+  function saveSession() {
+    try { localStorage.setItem('casino_user', JSON.stringify(currentUser)); } catch(_){}
+  }
+  function clearSession() {
+    try { localStorage.removeItem('casino_user'); } catch(_){}
+  }
+  async function tryAutoLogin() {
+    try {
+      var raw = localStorage.getItem('casino_user');
+      if (!raw) return false;
+      var saved = JSON.parse(raw);
+      if (!saved || !saved.id) return false;
+      var res = await sb.from('users').select('*').eq('id', saved.id).maybeSingle();
+      if (res.error || !res.data) { clearSession(); return false; }
+      currentUser = res.data;
+      saveSession();
+      return true;
+    } catch(_) { return false; }
+  }
+
+  // ════════════════════════════════════════════════════
+  //  AUTH
+  // ════════════════════════════════════════════════════
+
+  async function handleLogin() {
+    var name = document.getElementById('login-name').value.trim();
+    if (!name) return toast('Please enter your name.', 'error');
+    var btn = document.getElementById('login-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Entering…';
+    try {
+      var res = await sb.from('users').select('*').ilike('name', name).maybeSingle();
+      var user = res.data;
+      if (!user) {
+        var ins = await sb.from('users').insert({name:name, role:'player', balance:500}).select().single();
+        if (ins.error) throw ins.error;
+        user = ins.data;
+      }
+      currentUser = user;
+      saveSession();
+      initApp();
+    } catch(err) {
+      toast(err.message || 'Login failed.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enter the Floor';
     }
-    if (p === 'admin') loadAdminGames();
-  }, 4000);
-}
-
-function stopPolling() {
-  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
-}
-
-// ── Tiny connection indicator dot in the header ──
-function updateRtIndicator(status) {
-  if (!_rtStatusEl) {
-    _rtStatusEl = document.createElement('span');
-    _rtStatusEl.title = 'Realtime status';
-    _rtStatusEl.style.cssText = `
-      width:8px;height:8px;border-radius:50%;flex-shrink:0;
-      display:inline-block;transition:background 0.4s;`;
-    const hdr = document.querySelector('.header-right');
-    if (hdr) hdr.prepend(_rtStatusEl);
   }
-  const colors = {
-    SUBSCRIBED:    '#27ae60',
-    CHANNEL_ERROR: '#e74c3c',
-    TIMED_OUT:     '#f39c12',
-    CLOSED:        '#7a7590',
-  };
-  _rtStatusEl.style.background = colors[status] || '#7a7590';
-  _rtStatusEl.title = `Realtime: ${status}${status !== 'SUBSCRIBED' ? ' (polling fallback active)' : ''}`;
-}
 
-function animateBalance(prev, next) {
-  const el = document.getElementById('player-balance');
-  if (!el) return;
-  el.textContent = formatChips(next);
-  el.classList.remove('balance-pop');
-  void el.offsetWidth;
-  el.classList.add('balance-pop');
-}
-
-// ══════════════════════════════════════════
-// PLAYER PANEL
-// ══════════════════════════════════════════
-
-async function loadPlayerPanel() {
-  const { data: fresh } = await sb.from('users').select('balance').eq('id', currentUser.id).single();
-  if (fresh) {
-    if (fresh.balance !== currentUser.balance) animateBalance(currentUser.balance, fresh.balance);
-    currentUser.balance = fresh.balance;
+  function logout() {
+    stopPolling();
+    if (realtimeChannel) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+    currentUser = null; selectedGame = null; staffSelectedGame = null;
+    clearSession();
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-name').value = '';
   }
-  document.getElementById('player-balance').textContent = formatChips(currentUser.balance);
 
-  const { data: bets } = await sb
-    .from('bets').select('*, games(name)')
-    .eq('user_id', currentUser.id).order('id', { ascending: false });
+  // ════════════════════════════════════════════════════
+  //  APP INIT
+  // ════════════════════════════════════════════════════
 
-  const active   = (bets || []).filter(b => b.result === 'pending').length;
-  const totalWon = (bets || []).filter(b => b.result === 'win').reduce((s, b) => s + b.amount * 2, 0);
-  document.getElementById('player-active-bets').textContent = active;
-  document.getElementById('player-total-won').textContent   = formatChips(totalWon);
-
-  const { data: games } = await sb.from('games').select('*').order('id');
-  renderPlayerGames(games || []);
-  renderPlayerBets(bets || []);
-}
-
-function renderPlayerGames(games) {
-  const grid = document.getElementById('player-game-grid');
-  if (!games.length) {
-    grid.innerHTML = '<div class="empty"><div class="empty-icon">🎰</div><p>No games available yet.</p></div>';
-    return;
+  function initApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('hdr-avatar').textContent = currentUser.name[0].toUpperCase();
+    document.getElementById('hdr-name').textContent   = currentUser.name;
+    var rb = document.getElementById('hdr-role');
+    rb.textContent = currentUser.role;
+    rb.className   = 'role-badge ' + currentUser.role;
+    buildNav();
+    setupRealtime();
+    loadFirstPanel();
   }
-  const icons = ['🎰','🃏','🎲','🎯','♠','♥','🎴','🀄'];
-  grid.innerHTML = games.map((g, i) => `
-    <div class="game-card ${selectedGame?.id === g.id ? 'selected' : ''} ${g.status !== 'open' ? 'disabled' : ''}"
-         ${g.status === 'open' ? `onclick="selectGame(${g.id}, ${JSON.stringify(g.name)})"` : ''}>
-      <div class="game-icon">${icons[i % icons.length]}</div>
-      <div class="game-name">${escHtml(g.name)}</div>
-      <span class="badge badge-${g.status}">${g.status}</span>
-    </div>
-  `).join('');
-}
 
-function renderPlayerBets(bets) {
-  // Desktop table
-  const desk = document.getElementById('player-bets-desk');
-  desk.innerHTML = !bets.length
-    ? '<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--muted)">No bets placed yet.</td></tr>'
-    : bets.map(b => `
-        <tr>
-          <td>${escHtml(b.games?.name || '—')}</td>
-          <td style="color:var(--gold)">${formatChips(b.amount)}</td>
-          <td><span class="badge badge-${b.result}">${b.result}</span></td>
-        </tr>`).join('');
+  function buildNav() {
+    var tabs = document.getElementById('nav-tabs');
+    tabs.innerHTML = '';
+    var r = currentUser.role;
+    var panels = [];
+    if (r === 'player' || r === 'admin') panels.push({id:'player', label:'♠ My Table'});
+    if (r === 'staff'  || r === 'admin') panels.push({id:'staff',  label:'♦ Staff'});
+    if (r === 'admin')                   panels.push({id:'admin',  label:'♣ Admin'});
+    panels.forEach(function(p, i) {
+      var btn = document.createElement('button');
+      btn.className    = 'nav-tab' + (i === 0 ? ' active' : '');
+      btn.textContent  = p.label;
+      btn.dataset.panel = p.id;
+      btn.addEventListener('click', function(){ switchPanel(p.id); });
+      tabs.appendChild(btn);
+    });
+  }
 
-  // Mobile cards
-  const mob = document.getElementById('player-bets-mob');
-  mob.innerHTML = !bets.length
-    ? '<div class="empty"><div class="empty-icon">🃏</div><p>No bets placed yet.</p></div>'
-    : bets.map(b => `
-        <div class="m-card">
-          <div class="m-row"><span class="m-label">Game</span><span class="m-val">${escHtml(b.games?.name || '—')}</span></div>
-          <div class="m-row"><span class="m-label">Amount</span><span class="m-val" style="color:var(--gold)">${formatChips(b.amount)}</span></div>
-          <div class="m-row"><span class="m-label">Result</span><span class="m-val"><span class="badge badge-${b.result}">${b.result}</span></span></div>
-        </div>`).join('');
-}
+  function switchPanel(id) {
+    document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.panel === id); });
+    document.querySelectorAll('.panel').forEach(function(p){ p.classList.toggle('active', p.id === 'panel-' + id); });
+    loadPanel(id);
+  }
 
-function selectGame(id, name) {
-  selectedGame = { id, name };
-  document.getElementById('bet-game-name').textContent = `Bet on: ${name}`;
-  document.getElementById('bet-panel').style.display = 'block';
-  document.getElementById('bet-amount').value = '';
-  document.getElementById('bet-amount').focus();
-  // Highlight selected card
-  document.querySelectorAll('#player-game-grid .game-card').forEach(el => {
-    el.classList.toggle('selected', el.querySelector('.game-name')?.textContent === name);
+  function loadFirstPanel() {
+    var first = document.querySelector('.nav-tab');
+    if (first) switchPanel(first.dataset.panel);
+  }
+
+  function loadPanel(id) {
+    if (id === 'player') loadPlayerPanel();
+    if (id === 'staff')  loadStaffPanel();
+    if (id === 'admin')  loadAdminPanel();
+  }
+
+  // ════════════════════════════════════════════════════
+  //  REALTIME + POLLING FALLBACK
+  // ════════════════════════════════════════════════════
+
+  function setRtDot(color) {
+    var d = document.getElementById('rt-dot');
+    if (d) d.style.background = color;
+  }
+
+  function setupRealtime() {
+    if (realtimeChannel) { sb.removeChannel(realtimeChannel); }
+
+    realtimeChannel = sb.channel('casino-' + currentUser.id)
+      .on('postgres_changes', {event:'*', schema:'public', table:'users'}, function(payload) {
+        if (payload.new && payload.new.id === currentUser.id) {
+          animateBalance(currentUser.balance, payload.new.balance);
+          currentUser.balance = payload.new.balance;
+          currentUser.role    = payload.new.role;
+          saveSession();
+        }
+        if (activePanel() === 'admin') loadAdminUsers();
+      })
+      .on('postgres_changes', {event:'*', schema:'public', table:'bets'}, function() {
+        var p = activePanel();
+        if (p === 'player') loadPlayerPanel();
+        if (p === 'staff' && staffSelectedGame) loadStaffBets(staffSelectedGame.id);
+      })
+      .on('postgres_changes', {event:'*', schema:'public', table:'games'}, function() {
+        var p = activePanel();
+        if (p === 'player') loadPlayerPanel();
+        if (p === 'staff')  refreshStaffGameGrid();
+        if (p === 'admin')  loadAdminGames();
+      })
+      .subscribe(function(status) {
+        realtimeOk = (status === 'SUBSCRIBED');
+        if (realtimeOk) {
+          setRtDot('#27ae60');
+          stopPolling();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setRtDot('#e74c3c');
+          startPolling();
+        } else {
+          setRtDot('#f39c12');
+        }
+      });
+
+    // Safety net: if no SUBSCRIBED within 6s, start polling
+    setTimeout(function(){ if (!realtimeOk) startPolling(); }, 6000);
+  }
+
+  function startPolling() {
+    if (pollTimer) return;
+    console.info('[Casino] Realtime unavailable — polling every 4s');
+    setRtDot('#f39c12');
+    pollTimer = setInterval(function() {
+      if (!currentUser) return;
+      var p = activePanel();
+      if (p === 'player') loadPlayerPanel();
+      if (p === 'staff') {
+        refreshStaffGameGrid();
+        if (staffSelectedGame) loadStaffBets(staffSelectedGame.id);
+      }
+      if (p === 'admin') loadAdminGames();
+    }, 4000);
+  }
+
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function animateBalance(prev, next) {
+    var el = document.getElementById('player-balance');
+    if (!el) return;
+    el.textContent = chips(next);
+    el.classList.remove('balance-pop');
+    void el.offsetWidth;
+    el.classList.add('balance-pop');
+  }
+
+  // Refresh when user comes back to this tab
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && currentUser) {
+      var p = activePanel();
+      if (p === 'player') loadPlayerPanel();
+      if (p === 'staff') { refreshStaffGameGrid(); if (staffSelectedGame) loadStaffBets(staffSelectedGame.id); }
+      if (p === 'admin') loadAdminGames();
+    }
   });
-  setTimeout(() => document.getElementById('bet-panel')
-    .scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
-}
 
-function cancelBet() {
-  selectedGame = null;
-  document.getElementById('bet-panel').style.display = 'none';
-  loadPlayerPanel();
-}
+  // ════════════════════════════════════════════════════
+  //  PLAYER PANEL
+  // ════════════════════════════════════════════════════
 
-async function placeBet() {
-  if (!selectedGame) return;
-  const amount = parseInt(document.getElementById('bet-amount').value);
-  if (!amount || amount <= 0) return toast('Enter a valid amount.', 'error');
-  if (amount > currentUser.balance) return toast('Insufficient balance!', 'error');
+  async function loadPlayerPanel() {
+    var res = await sb.from('users').select('balance').eq('id', currentUser.id).single();
+    if (res.data) {
+      if (res.data.balance !== currentUser.balance) animateBalance(currentUser.balance, res.data.balance);
+      currentUser.balance = res.data.balance;
+    }
+    document.getElementById('player-balance').textContent = chips(currentUser.balance);
 
-  const newBalance = currentUser.balance - amount;
-  const { error: e1 } = await sb.from('users').update({ balance: newBalance }).eq('id', currentUser.id);
-  if (e1) return toast(e1.message, 'error');
+    var bRes = await sb.from('bets').select('*, games(name)').eq('user_id', currentUser.id).order('id', {ascending:false});
+    var bets = bRes.data || [];
+    var active   = bets.filter(function(b){ return b.result === 'pending'; }).length;
+    var totalWon = bets.filter(function(b){ return b.result === 'win'; }).reduce(function(s,b){ return s + b.amount*2; }, 0);
+    document.getElementById('player-active-bets').textContent = active;
+    document.getElementById('player-total-won').textContent   = chips(totalWon);
 
-  const { error: e2 } = await sb.from('bets').insert({
-    user_id: currentUser.id,
-    game_id: selectedGame.id,
-    amount,
-    result: 'pending'
-  });
-  if (e2) {
-    await sb.from('users').update({ balance: currentUser.balance }).eq('id', currentUser.id);
-    return toast(e2.message, 'error');
+    var gRes = await sb.from('games').select('*').order('id');
+    renderPlayerGames(gRes.data || []);
+    renderPlayerBets(bets);
   }
 
-  currentUser.balance = newBalance;
-  toast(`Bet of ${formatChips(amount)} placed! Good luck 🎲`, 'success');
-  selectedGame = null;
-  document.getElementById('bet-panel').style.display = 'none';
-  document.getElementById('bet-amount').value = '';
-  loadPlayerPanel();
-}
+  var ICONS = ['🎰','🃏','🎲','🎯','♠','♥','🎴','🀄'];
 
-// ══════════════════════════════════════════
-// STAFF PANEL
-// ══════════════════════════════════════════
+  function renderPlayerGames(games) {
+    var grid = document.getElementById('player-game-grid');
+    if (!games.length) { grid.innerHTML = '<div class="empty"><div class="empty-icon">🎰</div><p>No games available yet.</p></div>'; return; }
+    grid.innerHTML = games.map(function(g, i) {
+      var sel = selectedGame && selectedGame.id === g.id ? ' selected' : '';
+      var dis = g.status !== 'open' ? ' disabled' : '';
+      return '<div class="game-card' + sel + dis + '" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '" data-status="' + g.status + '">'
+        + '<div class="game-icon">' + ICONS[i % ICONS.length] + '</div>'
+        + '<div class="game-name">' + esc(g.name) + '</div>'
+        + '<span class="badge badge-' + g.status + '">' + g.status + '</span>'
+        + '</div>';
+    }).join('');
+    // Attach click listeners
+    grid.querySelectorAll('.game-card:not(.disabled)').forEach(function(card) {
+      card.addEventListener('click', function() {
+        selectGame(parseInt(card.dataset.gid), card.dataset.gname);
+      });
+    });
+  }
 
-async function loadStaffPanel() {
-  const { data: games } = await sb.from('games').select('*').order('id');
-  renderStaffGames(games || []);
+  function renderPlayerBets(bets) {
+    var desk = document.getElementById('player-bets-desk');
+    var mob  = document.getElementById('player-bets-mob');
+    if (!bets.length) {
+      desk.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--muted)">No bets placed yet.</td></tr>';
+      mob.innerHTML  = '<div class="empty"><div class="empty-icon">🃏</div><p>No bets placed yet.</p></div>';
+      return;
+    }
+    desk.innerHTML = bets.map(function(b) {
+      return '<tr><td>' + esc(b.games ? b.games.name : '—') + '</td>'
+        + '<td style="color:var(--gold)">' + chips(b.amount) + '</td>'
+        + '<td><span class="badge badge-' + b.result + '">' + b.result + '</span></td></tr>';
+    }).join('');
+    mob.innerHTML = bets.map(function(b) {
+      return '<div class="m-card">'
+        + '<div class="m-row"><span class="m-label">Game</span><span class="m-val">' + esc(b.games ? b.games.name : '—') + '</span></div>'
+        + '<div class="m-row"><span class="m-label">Amount</span><span class="m-val" style="color:var(--gold)">' + chips(b.amount) + '</span></div>'
+        + '<div class="m-row"><span class="m-label">Result</span><span class="m-val"><span class="badge badge-' + b.result + '">' + b.result + '</span></span></div>'
+        + '</div>';
+    }).join('');
+  }
 
-  if (staffSelectedGame) {
-    // Sync status from DB
-    const fresh = (games || []).find(g => g.id === staffSelectedGame.id);
-    if (fresh) staffSelectedGame.status = fresh.status;
+  function selectGame(id, name) {
+    selectedGame = {id:id, name:name};
+    document.getElementById('bet-game-name').textContent = 'Bet on: ' + name;
+    document.getElementById('bet-panel').style.display = 'block';
+    document.getElementById('bet-amount').value = '';
+    document.getElementById('bet-amount').focus();
+    document.querySelectorAll('#player-game-grid .game-card').forEach(function(c) {
+      c.classList.toggle('selected', parseInt(c.dataset.gid) === id);
+    });
+    setTimeout(function(){ document.getElementById('bet-panel').scrollIntoView({behavior:'smooth', block:'nearest'}); }, 60);
+  }
+
+  function cancelBet() {
+    selectedGame = null;
+    document.getElementById('bet-panel').style.display = 'none';
+    loadPlayerPanel();
+  }
+
+  async function placeBet() {
+    if (!selectedGame) return;
+    var amount = parseInt(document.getElementById('bet-amount').value);
+    if (!amount || amount <= 0) return toast('Enter a valid amount.', 'error');
+    if (amount > currentUser.balance) return toast('Insufficient balance!', 'error');
+    var newBal = currentUser.balance - amount;
+    var r1 = await sb.from('users').update({balance:newBal}).eq('id', currentUser.id);
+    if (r1.error) return toast(r1.error.message, 'error');
+    var r2 = await sb.from('bets').insert({user_id:currentUser.id, game_id:selectedGame.id, amount:amount, result:'pending'});
+    if (r2.error) {
+      await sb.from('users').update({balance:currentUser.balance}).eq('id', currentUser.id);
+      return toast(r2.error.message, 'error');
+    }
+    currentUser.balance = newBal;
+    saveSession();
+    toast('Bet of ' + chips(amount) + ' placed! 🎲', 'success');
+    selectedGame = null;
+    document.getElementById('bet-panel').style.display = 'none';
+    document.getElementById('bet-amount').value = '';
+    loadPlayerPanel();
+  }
+
+  // ════════════════════════════════════════════════════
+  //  STAFF PANEL
+  // ════════════════════════════════════════════════════
+
+  async function loadStaffPanel() {
+    var res = await sb.from('games').select('*').order('id');
+    var games = res.data || [];
+    renderStaffGames(games);
+    if (staffSelectedGame) {
+      var fresh = games.find(function(g){ return g.id === staffSelectedGame.id; });
+      if (fresh) staffSelectedGame.status = fresh.status;
+      await loadStaffBets(staffSelectedGame.id);
+    }
+  }
+
+  async function refreshStaffGameGrid() {
+    var res = await sb.from('games').select('*').order('id');
+    var games = res.data || [];
+    renderStaffGames(games);
+    if (staffSelectedGame) {
+      var fresh = games.find(function(g){ return g.id === staffSelectedGame.id; });
+      if (fresh) { staffSelectedGame.status = fresh.status; updateCloseBtn(fresh.status); }
+    }
+  }
+
+  function renderStaffGames(games) {
+    var grid = document.getElementById('staff-game-grid');
+    if (!games.length) { grid.innerHTML = '<div class="empty"><div class="empty-icon">🎰</div><p>No games yet. Ask admin.</p></div>'; return; }
+    grid.innerHTML = games.map(function(g, i) {
+      var sel = staffSelectedGame && staffSelectedGame.id === g.id ? ' selected' : '';
+      return '<div class="game-card' + sel + '" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '" data-status="' + g.status + '">'
+        + '<div class="game-icon">' + ICONS[i % ICONS.length] + '</div>'
+        + '<div class="game-name">' + esc(g.name) + '</div>'
+        + '<span class="badge badge-' + g.status + '">' + g.status + '</span>'
+        + '</div>';
+    }).join('');
+    grid.querySelectorAll('.game-card').forEach(function(card) {
+      card.addEventListener('click', function() {
+        staffSelectGame(parseInt(card.dataset.gid), card.dataset.gname, card.dataset.status);
+      });
+    });
+  }
+
+  async function staffSelectGame(id, name, status) {
+    staffSelectedGame = {id:id, name:name, status:status};
+    document.getElementById('staff-game-name').textContent = name;
+    document.getElementById('staff-round-panel').style.display = 'block';
+    updateCloseBtn(status);
+    await loadStaffBets(id);
+    setTimeout(function(){ document.getElementById('staff-round-panel').scrollIntoView({behavior:'smooth', block:'nearest'}); }, 60);
+  }
+
+  function updateCloseBtn(status) {
+    var btn = document.getElementById('staff-close-btn');
+    btn.disabled    = (status === 'closed');
+    btn.textContent = (status === 'closed') ? '✓ Round Closed' : 'Close Round';
+  }
+
+  async function loadStaffBets(gameId) {
+    // Always fetch fresh status from DB (fixes the race condition bug)
+    var gRes = await sb.from('games').select('status').eq('id', gameId).single();
+    var gameStatus = gRes.data ? gRes.data.status : 'open';
+    if (staffSelectedGame && staffSelectedGame.id === gameId) {
+      staffSelectedGame.status = gameStatus;
+      updateCloseBtn(gameStatus);
+    }
+
+    var bRes = await sb.from('bets').select('*, users(name)').eq('game_id', gameId).order('id');
+    var bets = bRes.data || [];
+    var desk = document.getElementById('staff-bets-desk');
+    var mob  = document.getElementById('staff-bets-mob');
+
+    if (!bets.length) {
+      desk.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">No bets for this game.</td></tr>';
+      mob.innerHTML  = '<div class="empty"><div class="empty-icon">🃏</div><p>No bets for this game.</p></div>';
+      return;
+    }
+
+    desk.innerHTML = bets.map(function(b) {
+      return '<tr>'
+        + '<td>' + esc(b.users ? b.users.name : 'Unknown') + '</td>'
+        + '<td style="color:var(--gold)">' + chips(b.amount) + '</td>'
+        + '<td><span class="badge badge-' + b.result + '">' + b.result + '</span></td>'
+        + '<td>' + betActionDesk(b, gameStatus) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    mob.innerHTML = bets.map(function(b) {
+      return '<div class="m-card">'
+        + '<div class="m-row"><span class="m-label">Player</span><span class="m-val">' + esc(b.users ? b.users.name : 'Unknown') + '</span></div>'
+        + '<div class="m-row"><span class="m-label">Amount</span><span class="m-val" style="color:var(--gold)">' + chips(b.amount) + '</span></div>'
+        + '<div class="m-row"><span class="m-label">Result</span><span class="m-val"><span class="badge badge-' + b.result + '">' + b.result + '</span></span></div>'
+        + betActionMob(b, gameStatus)
+        + '</div>';
+    }).join('');
+
+    // Wire up win/lose buttons
+    desk.querySelectorAll('[data-mark]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        markBet(parseInt(btn.dataset.betid), btn.dataset.mark, parseFloat(btn.dataset.amount), btn.dataset.uid);
+      });
+    });
+    mob.querySelectorAll('[data-mark]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        markBet(parseInt(btn.dataset.betid), btn.dataset.mark, parseFloat(btn.dataset.amount), btn.dataset.uid);
+      });
+    });
+  }
+
+  function betActionDesk(b, status) {
+    if (b.result !== 'pending') return '<span style="color:var(--muted)">—</span>';
+    if (status !== 'closed')    return '<span style="color:var(--muted);font-size:.7rem">Close round first</span>';
+    return '<div style="display:flex;gap:.4rem;">'
+      + '<button class="btn btn-success btn-xs" data-mark="win"  data-betid="' + b.id + '" data-amount="' + b.amount + '" data-uid="' + b.user_id + '">Win</button>'
+      + '<button class="btn btn-danger  btn-xs" data-mark="lose" data-betid="' + b.id + '" data-amount="' + b.amount + '" data-uid="' + b.user_id + '">Lose</button>'
+      + '</div>';
+  }
+
+  function betActionMob(b, status) {
+    if (b.result !== 'pending') return '';
+    if (status !== 'closed') return '<p style="margin-top:.75rem;font-size:.7rem;color:var(--muted)">Close round to set result</p>';
+    return '<div class="m-actions">'
+      + '<button class="btn btn-success" data-mark="win"  data-betid="' + b.id + '" data-amount="' + b.amount + '" data-uid="' + b.user_id + '">✓ Win (2×)</button>'
+      + '<button class="btn btn-danger"  data-mark="lose" data-betid="' + b.id + '" data-amount="' + b.amount + '" data-uid="' + b.user_id + '">✗ Lose</button>'
+      + '</div>';
+  }
+
+  async function closeRound() {
+    if (!staffSelectedGame) return;
+    if (!confirm('Close round for "' + staffSelectedGame.name + '"?\nNo more bets after this.')) return;
+    var btn = document.getElementById('staff-close-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    var res = await sb.from('games').update({status:'closed'}).eq('id', staffSelectedGame.id);
+    if (res.error) { toast(res.error.message, 'error'); btn.disabled = false; btn.textContent = 'Close Round'; return; }
+    staffSelectedGame.status = 'closed';
+    updateCloseBtn('closed');
+    toast('Round closed! Select winners below. 🏆', 'success');
     await loadStaffBets(staffSelectedGame.id);
   }
-}
 
-// Called ONLY by realtime games event — refreshes game cards without touching bets
-async function refreshStaffGameGrid() {
-  const { data: games } = await sb.from('games').select('*').order('id');
-  renderStaffGames(games || []);
-  if (staffSelectedGame) {
-    const fresh = (games || []).find(g => g.id === staffSelectedGame.id);
-    if (fresh) {
-      staffSelectedGame.status = fresh.status;
-      updateCloseBtn(fresh.status);
+  async function markBet(betId, result, amount, userId) {
+    var res = await sb.from('bets').update({result:result}).eq('id', betId);
+    if (res.error) return toast(res.error.message, 'error');
+    if (result === 'win') {
+      var uRes = await sb.from('users').select('balance').eq('id', userId).single();
+      var payout = amount * 2;
+      await sb.from('users').update({balance:(uRes.data ? uRes.data.balance : 0) + payout}).eq('id', userId);
+      toast('🏆 Winner! Paid out ' + chips(payout) + '.', 'success');
+    } else {
+      toast('Marked as loss.', 'error');
     }
-  }
-}
-
-function renderStaffGames(games) {
-  const grid = document.getElementById('staff-game-grid');
-  if (!games.length) {
-    grid.innerHTML = '<div class="empty"><div class="empty-icon">🎰</div><p>No games yet. Ask admin.</p></div>';
-    return;
-  }
-  const icons = ['🎰','🃏','🎲','🎯','♠','♥','🎴','🀄'];
-  grid.innerHTML = games.map((g, i) => `
-    <div class="game-card ${staffSelectedGame?.id === g.id ? 'selected' : ''}"
-         onclick="staffSelectGame(${g.id}, ${JSON.stringify(g.name)}, '${g.status}')">
-      <div class="game-icon">${icons[i % icons.length]}</div>
-      <div class="game-name">${escHtml(g.name)}</div>
-      <span class="badge badge-${g.status}">${g.status}</span>
-    </div>
-  `).join('');
-}
-
-async function staffSelectGame(id, name, status) {
-  staffSelectedGame = { id, name, status };
-  document.getElementById('staff-game-name').textContent = name;
-  document.getElementById('staff-round-panel').style.display = 'block';
-  updateCloseBtn(status);
-  await loadStaffBets(id);
-  setTimeout(() => document.getElementById('staff-round-panel')
-    .scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
-}
-
-function updateCloseBtn(status) {
-  const btn = document.getElementById('staff-close-btn');
-  btn.disabled    = (status === 'closed');
-  btn.textContent = (status === 'closed') ? '✓ Round Closed' : 'Close Round';
-}
-
-// ─────────────────────────────────────────────────────────────────
-// BUG FIX EXPLANATION:
-//
-// The original bug was a classic async race condition:
-//   1. closeRound() calls: await sb.from('games').update(...)
-//   2. Supabase immediately fires the realtime 'games' event
-//   3. The realtime handler called loadStaffPanel() → loadStaffBets()
-//   4. At that point staffSelectedGame.status was STILL 'open'
-//      (the line `staffSelectedGame.status = 'closed'` comes AFTER the await)
-//   5. So the Win/Lose buttons were rendered as hidden
-//
-// Fix: loadStaffBets() ALWAYS fetches the current game status fresh
-// from the database — never trusting the local variable alone.
-// ─────────────────────────────────────────────────────────────────
-async function loadStaffBets(gameId) {
-  // Always get game status from DB — never rely only on local state
-  const { data: game } = await sb.from('games').select('status').eq('id', gameId).single();
-  const gameStatus = game?.status ?? 'open';
-
-  // Keep local state in sync
-  if (staffSelectedGame?.id === gameId) {
-    staffSelectedGame.status = gameStatus;
-    updateCloseBtn(gameStatus);
+    await loadStaffBets(staffSelectedGame.id);
   }
 
-  const { data: bets } = await sb
-    .from('bets').select('*, users(name)')
-    .eq('game_id', gameId).order('id');
+  // ════════════════════════════════════════════════════
+  //  ADMIN PANEL
+  // ════════════════════════════════════════════════════
 
-  const desk = document.getElementById('staff-bets-desk');
-  const mob  = document.getElementById('staff-bets-mob');
+  function loadAdminPanel() { loadAdminGames(); }
 
-  if (!bets || !bets.length) {
-    desk.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">No bets for this game.</td></tr>';
-    mob.innerHTML  = '<div class="empty"><div class="empty-icon">🃏</div><p>No bets for this game.</p></div>';
-    return;
+  function switchAdminSub(sub) {
+    document.getElementById('sub-tab-games').classList.toggle('active', sub === 'games');
+    document.getElementById('sub-tab-users').classList.toggle('active', sub === 'users');
+    document.getElementById('admin-sub-games').style.display = sub === 'games' ? 'block' : 'none';
+    document.getElementById('admin-sub-users').style.display = sub === 'users' ? 'block' : 'none';
+    if (sub === 'games') loadAdminGames();
+    if (sub === 'users') loadAdminUsers();
   }
 
-  // Desktop table rows
-  desk.innerHTML = bets.map(b => `
-    <tr>
-      <td>${escHtml(b.users?.name || 'Unknown')}</td>
-      <td style="color:var(--gold)">${formatChips(b.amount)}</td>
-      <td><span class="badge badge-${b.result}">${b.result}</span></td>
-      <td>${betActionDesktop(b, gameStatus)}</td>
-    </tr>
-  `).join('');
-
-  // Mobile cards
-  mob.innerHTML = bets.map(b => `
-    <div class="m-card">
-      <div class="m-row">
-        <span class="m-label">Player</span>
-        <span class="m-val">${escHtml(b.users?.name || 'Unknown')}</span>
-      </div>
-      <div class="m-row">
-        <span class="m-label">Amount</span>
-        <span class="m-val" style="color:var(--gold)">${formatChips(b.amount)}</span>
-      </div>
-      <div class="m-row">
-        <span class="m-label">Result</span>
-        <span class="m-val"><span class="badge badge-${b.result}">${b.result}</span></span>
-      </div>
-      ${betActionMobile(b, gameStatus)}
-    </div>
-  `).join('');
-}
-
-function betActionDesktop(b, gameStatus) {
-  if (b.result !== 'pending') return '<span style="color:var(--muted)">—</span>';
-  if (gameStatus !== 'closed') return '<span style="color:var(--muted);font-size:0.7rem">Close round first</span>';
-  return `
-    <div style="display:flex;gap:0.4rem;">
-      <button class="btn btn-success btn-xs" onclick="markBet(${b.id},'win',${b.amount},'${b.user_id}')">Win</button>
-      <button class="btn btn-danger  btn-xs" onclick="markBet(${b.id},'lose',${b.amount},'${b.user_id}')">Lose</button>
-    </div>`;
-}
-
-function betActionMobile(b, gameStatus) {
-  if (b.result !== 'pending') return '';
-  if (gameStatus !== 'closed') return `<p style="margin-top:0.75rem;font-size:0.7rem;color:var(--muted)">Close round to set result</p>`;
-  return `
-    <div class="m-actions">
-      <button class="btn btn-success" onclick="markBet(${b.id},'win',${b.amount},'${b.user_id}')">✓ Win (2×)</button>
-      <button class="btn btn-danger"  onclick="markBet(${b.id},'lose',${b.amount},'${b.user_id}')">✗ Lose</button>
-    </div>`;
-}
-
-async function closeRound() {
-  if (!staffSelectedGame) return;
-  if (!confirm(`Close round for "${staffSelectedGame.name}"?\nNo more bets can be placed after this.`)) return;
-
-  const btn = document.getElementById('staff-close-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>';
-
-  const { error } = await sb.from('games').update({ status: 'closed' }).eq('id', staffSelectedGame.id);
-
-  if (error) {
-    toast(error.message, 'error');
-    btn.disabled = false;
-    btn.textContent = 'Close Round';
-    return;
-  }
-
-  // Update local state immediately (before any realtime fires)
-  staffSelectedGame.status = 'closed';
-  updateCloseBtn('closed');
-  toast('Round closed! Select the winners below. 🏆', 'success');
-
-  // Reload bets — fetches fresh DB status (fix confirmed)
-  await loadStaffBets(staffSelectedGame.id);
-}
-
-async function markBet(betId, result, amount, userId) {
-  const { error } = await sb.from('bets').update({ result }).eq('id', betId);
-  if (error) return toast(error.message, 'error');
-
-  if (result === 'win') {
-    const { data: u } = await sb.from('users').select('balance').eq('id', userId).single();
-    const payout = amount * 2;
-    await sb.from('users').update({ balance: (u?.balance || 0) + payout }).eq('id', userId);
-    toast(`🏆 Winner! Paid out ${formatChips(payout)}.`, 'success');
-  } else {
-    toast('Marked as loss.', 'error');
-  }
-  await loadStaffBets(staffSelectedGame.id);
-}
-
-// ══════════════════════════════════════════
-// ADMIN PANEL
-// ══════════════════════════════════════════
-
-function loadAdminPanel() { loadAdminGames(); }
-
-function switchAdminSub(sub) {
-  document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.sub === sub));
-  document.getElementById('admin-sub-games').style.display = sub === 'games' ? 'block' : 'none';
-  document.getElementById('admin-sub-users').style.display = sub === 'users' ? 'block' : 'none';
-  if (sub === 'games') loadAdminGames();
-  if (sub === 'users') loadAdminUsers();
-}
-
-async function loadAdminGames() {
-  const { data: games } = await sb.from('games').select('*').order('id');
-  const desk = document.getElementById('admin-games-desk');
-  const mob  = document.getElementById('admin-games-mob');
-
-  if (!games || !games.length) {
-    desk.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--muted)">No games yet.</td></tr>';
-    mob.innerHTML  = '<div class="empty"><div class="empty-icon">🎰</div><p>No games yet.</p></div>';
-    return;
-  }
-
-  desk.innerHTML = games.map(g => `
-    <tr>
-      <td>${escHtml(g.name)}</td>
-      <td><span class="badge badge-${g.status}">${g.status}</span></td>
-      <td>
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
-          ${g.status === 'closed'
-            ? `<button class="btn btn-success btn-xs" onclick="setGameStatus(${g.id},'open')">Reopen</button>`
-            : `<button class="btn btn-danger  btn-xs" onclick="setGameStatus(${g.id},'closed')">Close</button>`}
-          <button class="btn btn-outline btn-xs" onclick="deleteGame(${g.id}, ${JSON.stringify(g.name)})">Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-
-  mob.innerHTML = games.map(g => `
-    <div class="m-card">
-      <div class="m-row"><span class="m-label">Game</span><span class="m-val">${escHtml(g.name)}</span></div>
-      <div class="m-row"><span class="m-label">Status</span><span class="m-val"><span class="badge badge-${g.status}">${g.status}</span></span></div>
-      <div class="m-actions">
-        ${g.status === 'closed'
-          ? `<button class="btn btn-success btn-sm" onclick="setGameStatus(${g.id},'open')">Reopen</button>`
-          : `<button class="btn btn-danger  btn-sm" onclick="setGameStatus(${g.id},'closed')">Close</button>`}
-        <button class="btn btn-outline btn-sm" onclick="deleteGame(${g.id}, ${JSON.stringify(g.name)})">Delete</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function loadAdminUsers() {
-  const { data: users } = await sb.from('users').select('*').order('name');
-  const desk = document.getElementById('admin-users-desk');
-  const mob  = document.getElementById('admin-users-mob');
-
-  if (!users || !users.length) {
-    desk.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">No users.</td></tr>';
-    mob.innerHTML  = '<div class="empty"><div class="empty-icon">👤</div><p>No users found.</p></div>';
-    return;
-  }
-
-  desk.innerHTML = users.map(u => `
-    <tr>
-      <td>${escHtml(u.name)}</td>
-      <td><span class="role-badge ${u.role}">${u.role}</span></td>
-      <td style="color:var(--gold)">${formatChips(u.balance)}</td>
-      <td><button class="btn btn-outline btn-xs"
-          onclick="openEditUser('${u.id}','${escHtml(u.name)}','${u.role}',${u.balance})">Edit</button></td>
-    </tr>
-  `).join('');
-
-  mob.innerHTML = users.map(u => `
-    <div class="m-card">
-      <div class="m-row"><span class="m-label">Name</span><span class="m-val">${escHtml(u.name)}</span></div>
-      <div class="m-row"><span class="m-label">Role</span><span class="m-val"><span class="role-badge ${u.role}">${u.role}</span></span></div>
-      <div class="m-row"><span class="m-label">Balance</span><span class="m-val" style="color:var(--gold)">${formatChips(u.balance)}</span></div>
-      <div class="m-actions">
-        <button class="btn btn-gold btn-sm"
-            onclick="openEditUser('${u.id}','${escHtml(u.name)}','${u.role}',${u.balance})">Edit User</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function createGame() {
-  const name = document.getElementById('new-game-name').value.trim();
-  if (!name) return toast('Enter a game name.', 'error');
-  const { error } = await sb.from('games').insert({ name, status: 'open' });
-  if (error) return toast(error.message, 'error');
-  toast(`"${name}" created!`, 'success');
-  document.getElementById('new-game-name').value = '';
-  closeModal('modal-create-game');
-  loadAdminGames();
-}
-
-async function setGameStatus(id, status) {
-  await sb.from('games').update({ status }).eq('id', id);
-  loadAdminGames();
-}
-
-async function deleteGame(id, name) {
-  if (!confirm(`Delete "${name}" and all its bets?`)) return;
-  await sb.from('bets').delete().eq('game_id', id);
-  const { error } = await sb.from('games').delete().eq('id', id);
-  if (error) return toast(error.message, 'error');
-  toast('Game deleted.', 'success');
-  loadAdminGames();
-}
-
-function openEditUser(id, name, role, balance) {
-  document.getElementById('edit-user-id').value      = id;
-  document.getElementById('edit-user-name').value    = name;
-  document.getElementById('edit-user-role').value    = role;
-  document.getElementById('edit-user-balance').value = balance;
-  showModal('modal-edit-user');
-}
-
-async function saveUser() {
-  const id      = document.getElementById('edit-user-id').value;
-  const role    = document.getElementById('edit-user-role').value;
-  const balance = parseInt(document.getElementById('edit-user-balance').value);
-  if (isNaN(balance) || balance < 0) return toast('Invalid balance.', 'error');
-  const { error } = await sb.from('users').update({ role, balance }).eq('id', id);
-  if (error) return toast(error.message, 'error');
-  toast('User updated!', 'success');
-  closeModal('modal-edit-user');
-  loadAdminUsers();
-}
-
-// ══════════════════════════════════════════
-// HELPERS
-// ══════════════════════════════════════════
-
-function formatChips(n) {
-  if (n === null || n === undefined) return '—';
-  return '⬡\u202f' + Number(n).toLocaleString();
-}
-
-// Refresh data when user returns to the tab (handles background tab suspension)
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && currentUser) {
-    const p = activePanel();
-    if (p === 'player') loadPlayerPanel();
-    if (p === 'staff') {
-      refreshStaffGameGrid();
-      if (staffSelectedGame) loadStaffBets(staffSelectedGame.id);
+  async function loadAdminGames() {
+    var res = await sb.from('games').select('*').order('id');
+    var games = res.data || [];
+    var desk = document.getElementById('admin-games-desk');
+    var mob  = document.getElementById('admin-games-mob');
+    if (!games.length) {
+      desk.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--muted)">No games yet.</td></tr>';
+      mob.innerHTML  = '<div class="empty"><div class="empty-icon">🎰</div><p>No games yet.</p></div>';
+      return;
     }
-    if (p === 'admin') loadAdminGames();
+    desk.innerHTML = games.map(function(g) {
+      return '<tr>'
+        + '<td>' + esc(g.name) + '</td>'
+        + '<td><span class="badge badge-' + g.status + '">' + g.status + '</span></td>'
+        + '<td><div style="display:flex;gap:.4rem;flex-wrap:wrap;">'
+        + (g.status === 'closed'
+            ? '<button class="btn btn-success btn-xs" data-action="reopen" data-gid="' + g.id + '">Reopen</button>'
+            : '<button class="btn btn-danger  btn-xs" data-action="close"  data-gid="' + g.id + '">Close</button>')
+        + '<button class="btn btn-outline btn-xs" data-action="delete" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '">Delete</button>'
+        + '</div></td></tr>';
+    }).join('');
+    mob.innerHTML = games.map(function(g) {
+      return '<div class="m-card">'
+        + '<div class="m-row"><span class="m-label">Game</span><span class="m-val">' + esc(g.name) + '</span></div>'
+        + '<div class="m-row"><span class="m-label">Status</span><span class="m-val"><span class="badge badge-' + g.status + '">' + g.status + '</span></span></div>'
+        + '<div class="m-actions">'
+        + (g.status === 'closed'
+            ? '<button class="btn btn-success btn-sm" data-action="reopen" data-gid="' + g.id + '">Reopen</button>'
+            : '<button class="btn btn-danger  btn-sm" data-action="close"  data-gid="' + g.id + '">Close</button>')
+        + '<button class="btn btn-outline btn-sm" data-action="delete" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '">Delete</button>'
+        + '</div></div>';
+    }).join('');
+    // Wire buttons
+    [desk, mob].forEach(function(el) {
+      el.querySelectorAll('[data-action]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var a = btn.dataset.action, gid = parseInt(btn.dataset.gid);
+          if (a === 'close')  setGameStatus(gid, 'closed');
+          if (a === 'reopen') setGameStatus(gid, 'open');
+          if (a === 'delete') deleteGame(gid, btn.dataset.gname);
+        });
+      });
+    });
   }
-});
 
-function escHtml(str) {
-  return String(str).replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-}
+  async function loadAdminUsers() {
+    var res = await sb.from('users').select('*').order('name');
+    var users = res.data || [];
+    var desk = document.getElementById('admin-users-desk');
+    var mob  = document.getElementById('admin-users-mob');
+    if (!users.length) {
+      desk.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">No users.</td></tr>';
+      mob.innerHTML  = '<div class="empty"><div class="empty-icon">👤</div><p>No users found.</p></div>';
+      return;
+    }
+    desk.innerHTML = users.map(function(u) {
+      return '<tr>'
+        + '<td>' + esc(u.name) + '</td>'
+        + '<td><span class="role-badge ' + u.role + '">' + u.role + '</span></td>'
+        + '<td style="color:var(--gold)">' + chips(u.balance) + '</td>'
+        + '<td><button class="btn btn-outline btn-xs" data-uid="' + u.id + '" data-uname="' + esc(u.name) + '" data-urole="' + u.role + '" data-ubal="' + u.balance + '" data-action="edit">Edit</button></td>'
+        + '</tr>';
+    }).join('');
+    mob.innerHTML = users.map(function(u) {
+      return '<div class="m-card">'
+        + '<div class="m-row"><span class="m-label">Name</span><span class="m-val">' + esc(u.name) + '</span></div>'
+        + '<div class="m-row"><span class="m-label">Role</span><span class="m-val"><span class="role-badge ' + u.role + '">' + u.role + '</span></span></div>'
+        + '<div class="m-row"><span class="m-label">Balance</span><span class="m-val" style="color:var(--gold)">' + chips(u.balance) + '</span></div>'
+        + '<div class="m-actions"><button class="btn btn-gold btn-sm" data-uid="' + u.id + '" data-uname="' + esc(u.name) + '" data-urole="' + u.role + '" data-ubal="' + u.balance + '" data-action="edit">Edit User</button></div>'
+        + '</div>';
+    }).join('');
+    [desk, mob].forEach(function(el) {
+      el.querySelectorAll('[data-action="edit"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          openEditUser(btn.dataset.uid, btn.dataset.uname, btn.dataset.urole, btn.dataset.ubal);
+        });
+      });
+    });
+  }
 
-function showModal(id)   { document.getElementById(id).style.display = 'flex'; }
-function closeModal(id)  { document.getElementById(id).style.display = 'none'; }
-function bgClose(ev, id) { if (ev.target.id === id) closeModal(id); }
+  async function createGame() {
+    var name = document.getElementById('new-game-name').value.trim();
+    if (!name) return toast('Enter a game name.', 'error');
+    var res = await sb.from('games').insert({name:name, status:'open'});
+    if (res.error) return toast(res.error.message, 'error');
+    toast('"' + name + '" created!', 'success');
+    document.getElementById('new-game-name').value = '';
+    closeModal('modal-create-game');
+    loadAdminGames();
+  }
 
-let _toastTimer = null;
-function toast(msg, type = 'info') {
-  document.querySelectorAll('.toast').forEach(e => e.remove());
-  const el = document.createElement('div');
-  el.className   = `toast ${type}`;
-  el.textContent = msg;
-  document.body.appendChild(el);
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.remove(), 3400);
-}
+  async function setGameStatus(id, status) {
+    await sb.from('games').update({status:status}).eq('id', id);
+    loadAdminGames();
+  }
 
-// ══════════════════════════════════════════
-// BOOT — runs after all declarations are ready
-// ══════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', async () => {
-  const ok = await tryAutoLogin();
-  if (ok) initApp();
-});
+  async function deleteGame(id, name) {
+    if (!confirm('Delete "' + name + '" and all its bets?')) return;
+    await sb.from('bets').delete().eq('game_id', id);
+    var res = await sb.from('games').delete().eq('id', id);
+    if (res.error) return toast(res.error.message, 'error');
+    toast('Game deleted.', 'success');
+    loadAdminGames();
+  }
+
+  function openEditUser(id, name, role, balance) {
+    document.getElementById('edit-user-id').value      = id;
+    document.getElementById('edit-user-name').value    = name;
+    document.getElementById('edit-user-role').value    = role;
+    document.getElementById('edit-user-balance').value = balance;
+    showModal('modal-edit-user');
+  }
+
+  async function saveUser() {
+    var id      = document.getElementById('edit-user-id').value;
+    var role    = document.getElementById('edit-user-role').value;
+    var balance = parseInt(document.getElementById('edit-user-balance').value);
+    if (isNaN(balance) || balance < 0) return toast('Invalid balance.', 'error');
+    var res = await sb.from('users').update({role:role, balance:balance}).eq('id', id);
+    if (res.error) return toast(res.error.message, 'error');
+    toast('User updated!', 'success');
+    closeModal('modal-edit-user');
+    loadAdminUsers();
+  }
+
+  // ════════════════════════════════════════════════════
+  //  WIRE UP ALL STATIC BUTTONS (no inline onclick)
+  // ════════════════════════════════════════════════════
+
+  // Login
+  document.getElementById('login-btn').addEventListener('click', handleLogin);
+  document.getElementById('login-name').addEventListener('keydown', function(e){ if(e.key==='Enter') handleLogin(); });
+
+  // Logout
+  document.getElementById('logout-btn').addEventListener('click', logout);
+
+  // Bet panel
+  document.getElementById('place-bet-btn').addEventListener('click', placeBet);
+  document.getElementById('cancel-bet-btn').addEventListener('click', cancelBet);
+
+  // Staff close round
+  document.getElementById('staff-close-btn').addEventListener('click', closeRound);
+
+  // Admin tabs
+  document.getElementById('sub-tab-games').addEventListener('click', function(){ switchAdminSub('games'); });
+  document.getElementById('sub-tab-users').addEventListener('click', function(){ switchAdminSub('users'); });
+
+  // Admin new game modal
+  document.getElementById('new-game-btn').addEventListener('click', function(){ showModal('modal-create-game'); });
+  document.getElementById('create-game-btn').addEventListener('click', createGame);
+  document.getElementById('cancel-create-game-btn').addEventListener('click', function(){ closeModal('modal-create-game'); });
+  document.getElementById('close-create-game-modal').addEventListener('click', function(){ closeModal('modal-create-game'); });
+  document.getElementById('modal-create-game').addEventListener('click', function(e){ if(e.target===this) closeModal('modal-create-game'); });
+  document.getElementById('new-game-name').addEventListener('keydown', function(e){ if(e.key==='Enter') createGame(); });
+
+  // Admin edit user modal
+  document.getElementById('save-user-btn').addEventListener('click', saveUser);
+  document.getElementById('cancel-edit-user-btn').addEventListener('click', function(){ closeModal('modal-edit-user'); });
+  document.getElementById('close-edit-user-modal').addEventListener('click', function(){ closeModal('modal-edit-user'); });
+  document.getElementById('modal-edit-user').addEventListener('click', function(e){ if(e.target===this) closeModal('modal-edit-user'); });
+
+  // ════════════════════════════════════════════════════
+  //  BOOT — auto-login or show login screen
+  // ════════════════════════════════════════════════════
+  tryAutoLogin().then(function(ok) {
+    if (ok) initApp();
+  });
+
+}; // end window.onload
 </script>
 </body>
 </html>
