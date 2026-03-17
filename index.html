@@ -974,13 +974,7 @@ async function tryAutoLogin() {
   } catch(_) { return false; }
 }
 
-// Auto-login on page load
-(async () => {
-  const ok = await tryAutoLogin();
-  if (ok) {
-    initApp();
-  }
-})();
+
 
 // ══════════════════════════════════════════
 // APP INIT
@@ -1623,6 +1617,14 @@ function toast(msg, type = 'info') {
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => el.remove(), 3400);
 }
+
+// ══════════════════════════════════════════
+// BOOT — runs after all declarations are ready
+// ══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  const ok = await tryAutoLogin();
+  if (ok) initApp();
+});
 </script>
 </body>
 </html>
