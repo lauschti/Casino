@@ -59,10 +59,10 @@
     .role-badge.player{background:rgba(39,174,96,.15);color:var(--green2);border:1px solid rgba(39,174,96,.3)}
 
     /* TOAST */
-    .toast{position:fixed;bottom:1.25rem;right:1.25rem;left:1.25rem;max-width:360px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-left:3px solid var(--gold);padding:.85rem 1.2rem;border-radius:10px;font-size:.8rem;z-index:9999;animation:slideUp .3s ease;line-height:1.5}
+    .toast{position:fixed;top:1.25rem;right:1.25rem;left:1.25rem;max-width:360px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-left:3px solid var(--gold);padding:.85rem 1.2rem;border-radius:10px;font-size:.8rem;z-index:9999;animation:slideDown .3s ease;line-height:1.5}
     .toast.error{border-left-color:var(--red2)}
     .toast.success{border-left-color:var(--green2)}
-    @keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+    @keyframes slideDown{from{transform:translateY(-24px);opacity:0}to{transform:translateY(0);opacity:1}}
 
     hr.divider{border:none;border-top:1px solid var(--border);margin:1.5rem 0}
     .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite}
@@ -194,7 +194,7 @@
       <hr class="divider">
       <p style="font-size:.7rem;color:var(--muted);text-align:center;line-height:1.7;">New here? A player account is created automatically.<br>Admins &amp; Staff are assigned by the admin.</p>
     </div>
-    <div class="setup-note">⚠️ <strong style="color:var(--gold)">Setup required:</strong> Open <code>index.html</code> and set<br><code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> near the top of the &lt;script&gt; tag.</div>
+
   </div>
 </div>
 
@@ -209,6 +209,7 @@
         <span class="user-name" id="hdr-name">—</span>
       </div>
       <span class="role-badge" id="hdr-role">—</span>
+      <button class="btn btn-outline btn-sm" id="refresh-btn" title="Refresh data">↻</button>
       <button class="btn btn-outline btn-sm" id="logout-btn">Out</button>
     </div>
   </header>
@@ -242,7 +243,10 @@
       <div id="staff-round-panel" style="display:none;margin-top:.5rem;">
         <div class="section-header">
           <div class="section-title" id="staff-game-name">Round</div>
-          <button class="btn btn-danger btn-sm" id="staff-close-btn">Close Round</button>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <button class="btn btn-danger btn-sm" id="staff-close-btn">Close Round</button>
+            <button class="btn btn-success btn-sm" id="staff-reopen-btn" style="display:none;">↺ Reopen &amp; Reset</button>
+          </div>
         </div>
         <div class="table-wrap"><table><thead><tr><th>Player</th><th>Amount</th><th>Result</th><th>Action</th></tr></thead><tbody id="staff-bets-desk"></tbody></table></div>
         <div class="m-list" id="staff-bets-mob"></div>
@@ -521,7 +525,7 @@ window.onload = function() {
 
   function startPolling() {
     if (pollTimer) return;
-    console.info('[Casino] Realtime unavailable — polling every 4s');
+    console.info('[Casino] Polling fallback active (2s)');
     setRtDot('#f39c12');
     pollTimer = setInterval(function() {
       if (!currentUser) return;
@@ -532,7 +536,7 @@ window.onload = function() {
         if (staffSelectedGame) loadStaffBets(staffSelectedGame.id);
       }
       if (p === 'admin') loadAdminGames();
-    }, 4000);
+    }, 2000);
   }
 
   function stopPolling() {
@@ -719,9 +723,11 @@ window.onload = function() {
   }
 
   function updateCloseBtn(status) {
-    var btn = document.getElementById('staff-close-btn');
-    btn.disabled    = (status === 'closed');
-    btn.textContent = (status === 'closed') ? '✓ Round Closed' : 'Close Round';
+    var closeBtn  = document.getElementById('staff-close-btn');
+    var reopenBtn = document.getElementById('staff-reopen-btn');
+    closeBtn.disabled    = (status === 'closed');
+    closeBtn.textContent = (status === 'closed') ? '✓ Round Closed' : 'Close Round';
+    reopenBtn.style.display = (status === 'closed') ? 'inline-flex' : 'none';
   }
 
   async function loadStaffBets(gameId) {
@@ -803,6 +809,23 @@ window.onload = function() {
     staffSelectedGame.status = 'closed';
     updateCloseBtn('closed');
     toast('Round closed! Select winners below. 🏆', 'success');
+    await loadStaffBets(staffSelectedGame.id);
+  }
+
+  async function reopenRound() {
+    if (!staffSelectedGame) return;
+    if (!confirm('Runde "' + staffSelectedGame.name + '" zurücksetzen?\nAlle Wetten werden gelöscht und die Runde wieder geöffnet.')) return;
+    var btn = document.getElementById('staff-reopen-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    // Delete all bets for this game
+    var r1 = await sb.from('bets').delete().eq('game_id', staffSelectedGame.id);
+    if (r1.error) { toast(r1.error.message, 'error'); btn.disabled = false; btn.textContent = '↺ Reopen & Reset'; return; }
+    // Set game back to open
+    var r2 = await sb.from('games').update({status:'open'}).eq('id', staffSelectedGame.id);
+    if (r2.error) { toast(r2.error.message, 'error'); btn.disabled = false; btn.textContent = '↺ Reopen & Reset'; return; }
+    staffSelectedGame.status = 'open';
+    updateCloseBtn('open');
+    toast('Runde geöffnet! Alle Wetten wurden entfernt.', 'success');
     await loadStaffBets(staffSelectedGame.id);
   }
 
@@ -971,12 +994,20 @@ window.onload = function() {
   // Logout
   document.getElementById('logout-btn').addEventListener('click', logout);
 
+  // Manual refresh button
+  document.getElementById('refresh-btn').addEventListener('click', function() {
+    var p = activePanel();
+    if (p) loadPanel(p);
+    toast('Refreshed ↻', 'success');
+  });
+
   // Bet panel
   document.getElementById('place-bet-btn').addEventListener('click', placeBet);
   document.getElementById('cancel-bet-btn').addEventListener('click', cancelBet);
 
-  // Staff close round
+  // Staff close/reopen round
   document.getElementById('staff-close-btn').addEventListener('click', closeRound);
+  document.getElementById('staff-reopen-btn').addEventListener('click', reopenRound);
 
   // Admin tabs
   document.getElementById('sub-tab-games').addEventListener('click', function(){ switchAdminSub('games'); });
