@@ -2,8 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Casino Night — Management System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Casino Night</title>
+
+  <!-- PWA -->
+  <meta name="application-name" content="Casino Night"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Casino Night"/>
+  <meta name="theme-color" content="#0a0a0f"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <link rel="manifest" href="manifest.json"/>
+  <!-- Apple touch icon (inline SVG as data URI) -->
+  <link rel="apple-touch-icon" href="icon.svg"/>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -169,8 +181,23 @@
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
 
+    /* ── No horizontal scroll ever ── */
+    html, body { max-width:100%; overflow-x:hidden; }
+    #app { overflow-x:hidden; }
+
     @media(max-width:768px){.table-wrap{display:none}.m-list{display:block}.game-grid{grid-template-columns:repeat(auto-fill,minmax(135px,1fr))}}
-    @media(max-width:480px){.main{padding:1rem}header{padding:0 1rem;height:56px;--hdr:56px}.header-logo small{display:none}.stat-row{gap:.5rem}.stat-card{padding:.8rem .85rem}.stat-label{font-size:.52rem}.game-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}.game-icon{font-size:1.5rem}.game-name{font-size:.88rem}.nav-tabs{margin-bottom:1.25rem}.nav-tab{font-size:.68rem;padding:0 .85rem}.section-header{flex-direction:column;align-items:flex-start}.bet-panel{padding:1.1rem}}
+
+    /* ── Mobile header: hide overflow items ── */
+    @media(max-width:540px){
+      header { padding:0 .75rem; }
+      .header-logo small { display:none; }
+      .user-name { display:none; }
+      #hdr-role { display:none; }
+      #refresh-btn { display:none; }
+      .user-chip { padding:.3rem .45rem; }
+    }
+
+    @media(max-width:480px){.main{padding:1rem}.stat-row{gap:.5rem}.stat-card{padding:.8rem .85rem}.stat-label{font-size:.52rem}.game-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}.game-icon{font-size:1.5rem}.game-name{font-size:.88rem}.nav-tabs{margin-bottom:1.25rem}.nav-tab{font-size:.68rem;padding:0 .85rem}.section-header{flex-direction:column;align-items:flex-start}.bet-panel{padding:1.1rem}}
     @media(min-width:769px){.modal-overlay{align-items:center;padding:1.25rem}.modal{border-radius:var(--radius);max-width:480px;padding:2rem;animation:fadeModal .22s ease}.modal-handle{display:none}@keyframes fadeModal{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}}
   </style>
 </head>
@@ -543,6 +570,9 @@ window.onload = function() {
   function setupRealtime() {
     if (realtimeChannel) { sb.removeChannel(realtimeChannel); }
 
+    // Always start polling immediately — realtime is a bonus on top
+    startPolling();
+
     realtimeChannel = sb.channel('casino-' + currentUser.id)
       .on('postgres_changes', {event:'*', schema:'public', table:'users'}, function(payload) {
         if (payload.new && payload.new.id === currentUser.id) {
@@ -552,6 +582,7 @@ window.onload = function() {
           saveSession();
         }
         if (activePanel() === 'admin') loadAdminUsers();
+        if (activePanel() === 'chips') loadChipUserList();
       })
       .on('postgres_changes', {event:'*', schema:'public', table:'bets'}, function() {
         var p = activePanel();
@@ -566,35 +597,32 @@ window.onload = function() {
       })
       .subscribe(function(status) {
         realtimeOk = (status === 'SUBSCRIBED');
-        if (realtimeOk) {
-          setRtDot('#27ae60');
-          stopPolling();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          setRtDot('#e74c3c');
-          startPolling();
-        } else {
-          setRtDot('#f39c12');
-        }
+        setRtDot(realtimeOk ? '#27ae60' : (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' ? '#e74c3c' : '#f39c12'));
       });
 
-    // Safety net: if no SUBSCRIBED within 6s, start polling
-    setTimeout(function(){ if (!realtimeOk) startPolling(); }, 6000);
+    // Try to reconnect realtime every 30s if it's broken
+    setInterval(function() {
+      if (!realtimeOk && currentUser) {
+        sb.removeChannel(realtimeChannel);
+        setupRealtime();
+      }
+    }, 30000);
   }
 
   function startPolling() {
     if (pollTimer) return;
-    console.info('[Casino] Polling fallback active (2s)');
     setRtDot('#f39c12');
     pollTimer = setInterval(function() {
       if (!currentUser) return;
+      // Don't refresh if a modal is open (user is mid-action)
+      var modalOpen = document.querySelector('.modal-overlay[style*="flex"]');
+      if (modalOpen) return;
       var p = activePanel();
       if (p === 'player') loadPlayerPanel();
-      if (p === 'staff') {
-        refreshStaffGameGrid();
-        if (staffSelectedGame) loadStaffBets(staffSelectedGame.id);
-      }
+      if (p === 'staff') { refreshStaffGameGrid(); if (staffSelectedGame) loadStaffBets(staffSelectedGame.id); }
+      if (p === 'chips') loadChipUserList();
       if (p === 'admin') loadAdminGames();
-    }, 2000);
+    }, 3000);
   }
 
   function stopPolling() {
@@ -1243,6 +1271,11 @@ window.onload = function() {
   tryAutoLogin().then(function(ok) {
     if (ok) initApp();
   });
+
+  // Register PWA service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
 
 }; // end window.onload
 </script>
