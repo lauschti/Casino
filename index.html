@@ -253,6 +253,62 @@
       </div>
     </div>
 
+    <!-- CHIP EXCHANGE -->
+    <div class="panel" id="panel-chips">
+      <div class="section-header">
+        <div class="section-title">Chip Exchange<small>Chips kaufen &amp; zurückgeben</small></div>
+      </div>
+
+      <!-- Search box -->
+      <div class="form-group" style="max-width:420px;">
+        <label>Spieler suchen</label>
+        <input type="text" id="chip-search" placeholder="Name eingeben…" autocomplete="off" autocorrect="off"/>
+      </div>
+
+      <!-- Player result card -->
+      <div id="chip-player-card" style="display:none;max-width:420px;">
+        <div class="card" style="margin-bottom:1rem;">
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
+            <div class="user-avatar" id="chip-avatar" style="width:44px;height:44px;font-size:1rem;">?</div>
+            <div>
+              <div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;" id="chip-player-name">—</div>
+              <div style="font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-top:.2rem;">Aktuelles Guthaben</div>
+              <div style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--gold);" id="chip-player-balance">—</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Betrag (Chips)</label>
+            <input type="number" id="chip-amount" placeholder="z.B. 100" min="1" inputmode="numeric"/>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-danger" id="chip-buy-btn" title="Guthaben abziehen → physische Chips aushändigen">
+              ▼ Chips kaufen
+            </button>
+            <button class="btn btn-success" id="chip-return-btn" title="Physische Chips einsammeln → Guthaben gutschreiben">
+              ▲ Chips zurück
+            </button>
+          </div>
+
+          <div id="chip-feedback" style="display:none;margin-top:1rem;padding:.85rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;"></div>
+        </div>
+      </div>
+
+      <!-- Quick list of all players -->
+      <div class="section-header" style="margin-top:.5rem;">
+        <div class="section-title" style="font-size:1.1rem;">Alle Spieler<small>Tippen zum Auswählen</small></div>
+        <button class="btn btn-outline btn-sm" id="chip-refresh-btn">↻ Aktualisieren</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Rolle</th><th>Guthaben</th><th></th></tr></thead>
+          <tbody id="chip-users-desk"></tbody>
+        </table>
+      </div>
+      <div class="m-list" id="chip-users-mob"></div>
+    </div>
+
     <!-- ADMIN -->
     <div class="panel" id="panel-admin">
       <div class="sub-tabs">
@@ -445,6 +501,7 @@ window.onload = function() {
     var panels = [];
     if (r === 'player' || r === 'admin') panels.push({id:'player', label:'♠ My Table'});
     if (r === 'staff'  || r === 'admin') panels.push({id:'staff',  label:'♦ Staff'});
+    if (r === 'staff'  || r === 'admin') panels.push({id:'chips',  label:'⬡ Chips'});
     if (r === 'admin')                   panels.push({id:'admin',  label:'♣ Admin'});
     panels.forEach(function(p, i) {
       var btn = document.createElement('button');
@@ -470,6 +527,7 @@ window.onload = function() {
   function loadPanel(id) {
     if (id === 'player') loadPlayerPanel();
     if (id === 'staff')  loadStaffPanel();
+    if (id === 'chips')  loadChipsPanel();
     if (id === 'admin')  loadAdminPanel();
   }
 
@@ -844,6 +902,146 @@ window.onload = function() {
   }
 
   // ════════════════════════════════════════════════════
+  //  CHIP EXCHANGE PANEL
+  // ════════════════════════════════════════════════════
+
+  var chipSelectedUser = null;
+
+  async function loadChipsPanel() {
+    chipSelectedUser = null;
+    document.getElementById('chip-player-card').style.display = 'none';
+    document.getElementById('chip-search').value = '';
+    document.getElementById('chip-amount').value = '';
+    hideFeedback();
+    await loadChipUserList();
+  }
+
+  async function loadChipUserList() {
+    var res = await sb.from('users').select('id,name,role,balance').order('name');
+    var users = res.data || [];
+    renderChipUserList(users);
+  }
+
+  function renderChipUserList(users) {
+    var desk = document.getElementById('chip-users-desk');
+    var mob  = document.getElementById('chip-users-mob');
+    if (!users.length) {
+      desk.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">Keine Spieler gefunden.</td></tr>';
+      mob.innerHTML  = '<div class="empty"><div class="empty-icon">👤</div><p>Keine Spieler.</p></div>';
+      return;
+    }
+    desk.innerHTML = users.map(function(u) {
+      return '<tr>'
+        + '<td>' + esc(u.name) + '</td>'
+        + '<td><span class="role-badge ' + u.role + '">' + u.role + '</span></td>'
+        + '<td style="color:var(--gold);font-weight:600">' + chips(u.balance) + '</td>'
+        + '<td><button class="btn btn-gold btn-xs" data-action="select-chip-user" data-uid="' + u.id + '" data-uname="' + esc(u.name) + '" data-ubal="' + u.balance + '">Auswählen</button></td>'
+        + '</tr>';
+    }).join('');
+    mob.innerHTML = users.map(function(u) {
+      return '<div class="m-card" style="cursor:pointer;" data-action="select-chip-user" data-uid="' + u.id + '" data-uname="' + esc(u.name) + '" data-ubal="' + u.balance + '">'
+        + '<div class="m-row"><span class="m-label">Name</span><span class="m-val" style="font-weight:600">' + esc(u.name) + '</span></div>'
+        + '<div class="m-row"><span class="m-label">Guthaben</span><span class="m-val" style="color:var(--gold);font-size:1rem;font-weight:700">' + chips(u.balance) + '</span></div>'
+        + '<div class="m-actions"><button class="btn btn-gold btn-sm" data-action="select-chip-user" data-uid="' + u.id + '" data-uname="' + esc(u.name) + '" data-ubal="' + u.balance + '">Auswählen</button></div>'
+        + '</div>';
+    }).join('');
+    // Wire select buttons
+    [desk, mob].forEach(function(el) {
+      el.querySelectorAll('[data-action="select-chip-user"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          selectChipUser(btn.dataset.uid, btn.dataset.uname, parseFloat(btn.dataset.ubal));
+        });
+      });
+    });
+  }
+
+  function selectChipUser(id, name, balance) {
+    chipSelectedUser = {id:id, name:name, balance:balance};
+    document.getElementById('chip-avatar').textContent       = name[0].toUpperCase();
+    document.getElementById('chip-player-name').textContent  = name;
+    document.getElementById('chip-player-balance').textContent = chips(balance);
+    document.getElementById('chip-player-card').style.display = 'block';
+    document.getElementById('chip-amount').value = '';
+    hideFeedback();
+    document.getElementById('chip-amount').focus();
+    setTimeout(function(){ document.getElementById('chip-player-card').scrollIntoView({behavior:'smooth', block:'nearest'}); }, 60);
+  }
+
+  async function refreshChipUser() {
+    if (!chipSelectedUser) return;
+    var res = await sb.from('users').select('balance').eq('id', chipSelectedUser.id).single();
+    if (res.data) {
+      chipSelectedUser.balance = res.data.balance;
+      document.getElementById('chip-player-balance').textContent = chips(chipSelectedUser.balance);
+    }
+  }
+
+  function showFeedback(msg, type) {
+    var el = document.getElementById('chip-feedback');
+    el.style.display = 'block';
+    el.textContent   = msg;
+    el.style.background = type === 'success' ? 'rgba(39,174,96,.15)' : 'rgba(192,57,43,.15)';
+    el.style.border  = '1px solid ' + (type === 'success' ? 'rgba(39,174,96,.4)' : 'rgba(192,57,43,.4)');
+    el.style.color   = type === 'success' ? 'var(--green2)' : 'var(--red2)';
+  }
+
+  function hideFeedback() {
+    document.getElementById('chip-feedback').style.display = 'none';
+  }
+
+  async function doChipTransaction(direction) {
+    // direction: 'buy' = subtract balance, 'return' = add balance
+    if (!chipSelectedUser) return toast('Bitte zuerst einen Spieler auswählen.', 'error');
+    var amount = parseInt(document.getElementById('chip-amount').value);
+    if (!amount || amount <= 0) return toast('Bitte einen gültigen Betrag eingeben.', 'error');
+
+    if (direction === 'buy' && amount > chipSelectedUser.balance) {
+      showFeedback('⚠ Nicht genug Guthaben! Verfügbar: ' + chips(chipSelectedUser.balance), 'error');
+      return;
+    }
+
+    var buyBtn    = document.getElementById('chip-buy-btn');
+    var returnBtn = document.getElementById('chip-return-btn');
+    buyBtn.disabled = returnBtn.disabled = true;
+
+    var newBalance = direction === 'buy'
+      ? chipSelectedUser.balance - amount
+      : chipSelectedUser.balance + amount;
+
+    var res = await sb.from('users').update({balance: newBalance}).eq('id', chipSelectedUser.id);
+    if (res.error) {
+      toast(res.error.message, 'error');
+      buyBtn.disabled = returnBtn.disabled = false;
+      return;
+    }
+
+    chipSelectedUser.balance = newBalance;
+    document.getElementById('chip-player-balance').textContent = chips(newBalance);
+    document.getElementById('chip-amount').value = '';
+
+    if (direction === 'buy') {
+      showFeedback('✓ ' + chips(amount) + ' Chips ausgegeben. Neues Guthaben: ' + chips(newBalance), 'success');
+      toast(chipSelectedUser.name + ' kauft ' + chips(amount) + ' Chips.', 'success');
+    } else {
+      showFeedback('✓ ' + chips(amount) + ' Chips zurück. Neues Guthaben: ' + chips(newBalance), 'success');
+      toast(chipSelectedUser.name + ' gibt ' + chips(amount) + ' Chips zurück.', 'success');
+    }
+
+    // Refresh the user list in background
+    await loadChipUserList();
+    buyBtn.disabled = returnBtn.disabled = false;
+  }
+
+  // Live search filter
+  function filterChipUsers() {
+    var q = document.getElementById('chip-search').value.trim().toLowerCase();
+    if (!q) { loadChipUserList(); return; }
+    sb.from('users').select('id,name,role,balance').ilike('name', '%' + q + '%').order('name').then(function(res) {
+      renderChipUserList(res.data || []);
+    });
+  }
+
+  // ════════════════════════════════════════════════════
   //  ADMIN PANEL
   // ════════════════════════════════════════════════════
 
@@ -1008,6 +1206,18 @@ window.onload = function() {
   // Staff close/reopen round
   document.getElementById('staff-close-btn').addEventListener('click', closeRound);
   document.getElementById('staff-reopen-btn').addEventListener('click', reopenRound);
+
+  // Chip Exchange
+  document.getElementById('chip-buy-btn').addEventListener('click',    function(){ doChipTransaction('buy'); });
+  document.getElementById('chip-return-btn').addEventListener('click', function(){ doChipTransaction('return'); });
+  document.getElementById('chip-refresh-btn').addEventListener('click', loadChipUserList);
+  document.getElementById('chip-search').addEventListener('input', filterChipUsers);
+  document.getElementById('chip-amount').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') {
+      // default to "buy" on enter, but only if amount is filled
+      if (document.getElementById('chip-amount').value) doChipTransaction('buy');
+    }
+  });
 
   // Admin tabs
   document.getElementById('sub-tab-games').addEventListener('click', function(){ switchAdminSub('games'); });
