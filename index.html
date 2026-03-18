@@ -1277,6 +1277,20 @@ window.onload = function() {
     navigator.serviceWorker.register('sw.js').catch(function(){});
   }
 
+  // ── Wake Lock: Bildschirm an lassen ──
+  var wakeLock = null;
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+    } catch(_) {}
+  }
+  // Re-acquire after tab becomes visible again (iOS/Android release it on hide)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') requestWakeLock();
+  });
+  requestWakeLock();
+
 }; // end window.onload
 </script>
 </body>
