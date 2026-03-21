@@ -712,6 +712,9 @@ window.onload = function() {
           currentUser.balance = payload.new.balance;
           currentUser.role    = payload.new.role;
           saveSession();
+          // Keep slot panel balance in sync (tablet writes users.balance directly)
+          var slotBal = document.getElementById('slot-conn-balance');
+          if (slotBal && slotSession) slotBal.textContent = chips(payload.new.balance);
         }
         if (activePanel() === 'admin' && currentUser && currentUser.role === 'admin') loadAdminUsers();
         if (activePanel() === 'chips') loadChipUserList();
@@ -1230,6 +1233,8 @@ window.onload = function() {
     document.getElementById('slot-idle-view').style.display      = 'none';
     document.getElementById('slot-connected-view').style.display = 'block';
     document.getElementById('slot-table-label').textContent = 'Tisch ' + (sess.table_code || '—');
+    // Always show current balance from currentUser (main app keeps this fresh via users realtime)
+    document.getElementById('slot-conn-balance').textContent = chips(currentUser.balance);
     renderSlotStatus(sess);
   }
 
@@ -1248,16 +1253,13 @@ window.onload = function() {
     var text    = document.getElementById('slot-status-text');
     var rc      = document.getElementById('slot-result-card');
 
-    // Always show current balance
+    // Balance display: read from slot_sessions as a convenience.
+    // The REAL source of truth is users.balance, updated via main casino realtime.
     if (s.player_balance != null) {
       document.getElementById('slot-conn-balance').textContent = chips(s.player_balance);
-      currentUser.balance = s.player_balance;
-      var pb = document.getElementById('player-balance');
-      if (pb) pb.textContent = chips(s.player_balance);
     }
 
     if (s.status === 'spinning') {
-      // Show spinner, hide emoji
       icon.style.display    = 'none';
       spinner.style.display = 'inline-block';
       text.textContent      = 'Walzen drehen…';
@@ -1267,7 +1269,6 @@ window.onload = function() {
       return;
     }
 
-    // Not spinning — show emoji again
     icon.style.display    = 'inline';
     spinner.style.display = 'none';
     text.style.color      = '';
@@ -1305,12 +1306,18 @@ window.onload = function() {
       var sRes = await sb.from('slot_sessions').select('*').eq('table_code', code).maybeSingle();
       if (!sRes.data) throw new Error('Tisch "' + code + '" nicht gefunden.');
       if (sRes.data.player_id && sRes.data.player_id !== currentUser.id) throw new Error('Dieser Tisch ist bereits belegt!');
+
+      // Always get the freshest balance from users table
       var uRes = await sb.from('users').select('balance').eq('id', currentUser.id).single();
       var bal  = uRes.data ? uRes.data.balance : currentUser.balance;
-      var upd  = await sb.from('slot_sessions')
-        .update({ player_id: currentUser.id, player_name: currentUser.name, player_balance: bal, status: 'idle', symbols: null, win_amount: 0 })
+      currentUser.balance = bal;
+
+      var upd = await sb.from('slot_sessions')
+        .update({ player_id: currentUser.id, player_name: currentUser.name,
+                  player_balance: bal, status: 'idle', symbols: null, win_amount: 0 })
         .eq('table_code', code).select().single();
       if (upd.error) throw upd.error;
+
       try { localStorage.setItem('slot_last_code', code); } catch(_){}
       slotLastStat = null;
       subscribeSlotRt(code);
@@ -1356,6 +1363,9 @@ window.onload = function() {
     sb.from('slot_sessions').select('*').eq('table_code', slotSession.table_code).maybeSingle().then(function(r) {
       if (!r.data) return;
       if (!r.data.player_id || r.data.player_id !== currentUser.id) { showSlotIdle(); return; }
+      // During spinning: only update if status changed away from spinning (result arrived)
+      // Never overwrite balance mid-spin — tablet owns it
+      if (slotLastStat === 'spinning' && r.data.status === 'spinning') return;
       slotSession = r.data;
       renderSlotStatus(slotSession);
     });
