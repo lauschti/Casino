@@ -177,7 +177,7 @@
 
     @keyframes balancePop{0%{transform:scale(1)}40%{transform:scale(1.18);color:var(--gold2)}100%{transform:scale(1)}}
     .balance-pop{animation:balancePop .45s ease}
-    @keyframes slotSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+    @keyframes spin360{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
     ::-webkit-scrollbar{width:4px;height:4px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
@@ -420,7 +420,10 @@
 
         <!-- Status -->
         <div class="card" style="text-align:center;padding:1.5rem;margin-bottom:1rem;">
-          <div id="slot-status-icon" style="font-size:3rem;margin-bottom:.6rem;line-height:1;">🎰</div>
+          <div style="font-size:2.8rem;margin-bottom:.6rem;line-height:1;min-height:3.2rem;display:flex;align-items:center;justify-content:center;">
+            <span id="slot-status-icon">🎰</span>
+            <span id="slot-spin-spinner" style="display:none;width:44px;height:44px;border:4px solid rgba(212,160,23,.2);border-top-color:var(--gold);border-radius:50%;animation:spin360 .5s linear infinite;"></span>
+          </div>
           <div style="font-size:.58rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;">Status</div>
           <div id="slot-status-text" style="font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;">Warte auf Spin…</div>
         </div>
@@ -1240,10 +1243,12 @@ window.onload = function() {
 
   function renderSlotStatus(s) {
     if (!s) return;
-    var icon = document.getElementById('slot-status-icon');
-    var text = document.getElementById('slot-status-text');
-    var rc   = document.getElementById('slot-result-card');
+    var icon    = document.getElementById('slot-status-icon');
+    var spinner = document.getElementById('slot-spin-spinner');
+    var text    = document.getElementById('slot-status-text');
+    var rc      = document.getElementById('slot-result-card');
 
+    // Always show current balance
     if (s.player_balance != null) {
       document.getElementById('slot-conn-balance').textContent = chips(s.player_balance);
       currentUser.balance = s.player_balance;
@@ -1252,16 +1257,20 @@ window.onload = function() {
     }
 
     if (s.status === 'spinning') {
-      icon.textContent     = '🎰';
-      icon.style.animation = 'slotSpin .4s linear infinite';
-      text.textContent     = 'Walzen drehen…';
-      text.style.color     = 'var(--gold)';
-      rc.style.display     = 'none';
+      // Show spinner, hide emoji
+      icon.style.display    = 'none';
+      spinner.style.display = 'inline-block';
+      text.textContent      = 'Walzen drehen…';
+      text.style.color      = 'var(--gold)';
+      rc.style.display      = 'none';
       slotLastStat = 'spinning';
       return;
     }
 
-    icon.style.animation = '';
+    // Not spinning — show emoji again
+    icon.style.display    = 'inline';
+    spinner.style.display = 'none';
+    text.style.color      = '';
 
     if (s.status === 'result' && s.symbols && s.symbols.length) {
       var isWin = s.win_amount > 0;
@@ -1280,11 +1289,9 @@ window.onload = function() {
       }
       slotLastStat = 'result';
     } else {
-      icon.textContent     = '🎰';
-      icon.style.animation = '';
-      text.textContent     = 'Warte auf Spin…';
-      text.style.color     = '';
-      rc.style.display     = 'none';
+      icon.textContent = '🎰';
+      text.textContent = 'Warte auf Spin…';
+      rc.style.display = 'none';
       slotLastStat = 'idle';
     }
   }
