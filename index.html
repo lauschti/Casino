@@ -622,6 +622,20 @@ window.onload = function() {
     var rb = document.getElementById('hdr-role');
     rb.textContent = currentUser.role;
     rb.className   = 'role-badge ' + currentUser.role;
+
+    // Hard-hide panels the current role has no access to
+    var r = currentUser.role;
+    if (r !== 'admin') {
+      var ap = document.getElementById('panel-admin');
+      if (ap) ap.style.display = 'none';
+    }
+    if (r === 'player') {
+      var sp = document.getElementById('panel-staff');
+      if (sp) sp.style.display = 'none';
+      var cp = document.getElementById('panel-chips');
+      if (cp) cp.style.display = 'none';
+    }
+
     buildNav();
     setupRealtime();
     loadFirstPanel();
@@ -661,11 +675,14 @@ window.onload = function() {
   }
 
   function loadPanel(id) {
-    if (id === 'player') loadPlayerPanel();
-    if (id === 'slot')   loadSlotPanel();
-    if (id === 'staff')  loadStaffPanel();
-    if (id === 'chips')  loadChipsPanel();
-    if (id === 'admin')  loadAdminPanel();
+    var r = currentUser ? currentUser.role : '';
+    // Role guards — belt AND suspenders
+    if (id === 'player' && (r === 'player' || r === 'admin')) { loadPlayerPanel(); return; }
+    if (id === 'slot'   && (r === 'player' || r === 'admin')) { loadSlotPanel();   return; }
+    if (id === 'staff'  && (r === 'staff'  || r === 'admin')) { loadStaffPanel();  return; }
+    if (id === 'chips'  && (r === 'staff'  || r === 'admin')) { loadChipsPanel();  return; }
+    if (id === 'admin'  &&  r === 'admin')                    { loadAdminPanel();  return; }
+    // Unauthorized — silently ignore
   }
 
   // ════════════════════════════════════════════════════
@@ -691,7 +708,7 @@ window.onload = function() {
           currentUser.role    = payload.new.role;
           saveSession();
         }
-        if (activePanel() === 'admin') loadAdminUsers();
+        if (activePanel() === 'admin' && currentUser && currentUser.role === 'admin') loadAdminUsers();
         if (activePanel() === 'chips') loadChipUserList();
       })
       .on('postgres_changes', {event:'*', schema:'public', table:'bets'}, function() {
@@ -1348,7 +1365,10 @@ window.onload = function() {
     return {player:'Spieler', staff:'Staff', admin:'Admin'}[r] || r;
   }
 
-  function loadAdminPanel() { loadAdminGames(); }
+  function loadAdminPanel() {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    loadAdminGames();
+  }
 
   function switchAdminSub(sub) {
     ['games','users','leaderboard'].forEach(function(s) {
