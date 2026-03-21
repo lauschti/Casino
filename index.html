@@ -177,6 +177,7 @@
 
     @keyframes balancePop{0%{transform:scale(1)}40%{transform:scale(1.18);color:var(--gold2)}100%{transform:scale(1)}}
     .balance-pop{animation:balancePop .45s ease}
+    @keyframes slotSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
     ::-webkit-scrollbar{width:4px;height:4px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
@@ -376,8 +377,65 @@
       <div class="m-list" id="chip-users-mob"></div>
     </div>
 
+    <!-- SLOT -->
+    <!-- SLOT -->
+    <div class="panel" id="panel-slot">
+
+      <!-- ── IDLE: Code eingeben ── -->
+      <div id="slot-idle-view">
+        <div class="section-header">
+          <div class="section-title">🎰 Bandit<small>Mit Tisch verbinden</small></div>
+        </div>
+
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="form-group" style="margin-bottom:.75rem;">
+            <label>Tisch-Code</label>
+            <input type="text" id="slot-code-input" placeholder="z.B. T4X9" maxlength="6"
+                   style="text-transform:uppercase;letter-spacing:.25em;font-size:1.1rem;"
+                   autocomplete="off" autocorrect="off" spellcheck="false"/>
+          </div>
+          <button class="btn btn-gold btn-block" id="slot-join-btn">🎰 Verbinden</button>
+        </div>
+
+        <div style="padding:.85rem 1rem;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.15);border-radius:10px;font-size:.72rem;color:var(--muted);line-height:1.7;">
+          ℹ️ Den Code findest du auf dem <strong style="color:var(--gold)">Slot-Tablet</strong> — groß angezeigt, sobald die Maschine startet.
+        </div>
+      </div>
+
+      <!-- ── CONNECTED: Status anzeigen ── -->
+      <div id="slot-connected-view" style="display:none;">
+        <div class="section-header">
+          <div class="section-title">🎰 Verbunden<small id="slot-table-label">Tisch —</small></div>
+          <button class="btn btn-danger btn-sm" id="slot-leave-btn">Verlassen</button>
+        </div>
+
+        <!-- Guthaben -->
+        <div style="display:flex;justify-content:space-between;align-items:center;
+             background:var(--card);border:1px solid var(--border);border-radius:10px;
+             padding:.85rem 1.1rem;margin-bottom:1rem;">
+          <span style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);">Guthaben</span>
+          <span style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--gold);"
+                id="slot-conn-balance">—</span>
+        </div>
+
+        <!-- Status -->
+        <div class="card" style="text-align:center;padding:1.5rem;margin-bottom:1rem;">
+          <div id="slot-status-icon" style="font-size:3rem;margin-bottom:.6rem;line-height:1;">🎰</div>
+          <div style="font-size:.58rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;">Status</div>
+          <div id="slot-status-text" style="font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;">Warte auf Spin…</div>
+        </div>
+
+        <!-- Letztes Ergebnis -->
+        <div class="card" id="slot-result-card" style="display:none;text-align:center;padding:1.25rem;">
+          <div id="slot-result-syms" style="font-size:2.2rem;letter-spacing:.4rem;margin-bottom:.6rem;line-height:1;"></div>
+          <div id="slot-result-label" style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;"></div>
+          <div id="slot-result-amt" style="font-size:.9rem;font-weight:600;margin-top:.3rem;"></div>
+        </div>
+      </div>
+
+    </div>
+
     <!-- ADMIN -->
-    <div class="panel" id="panel-admin">
       <div class="sub-tabs">
         <button class="sub-tab active" id="sub-tab-games">♣ Spiele</button>
         <button class="sub-tab" id="sub-tab-users">♥ Spieler</button>
@@ -575,6 +633,7 @@ window.onload = function() {
     var r = currentUser.role;
     var panels = [];
     if (r === 'player' || r === 'admin') panels.push({id:'player', label:'♠ Mein Tisch'});
+    if (r === 'player' || r === 'admin') panels.push({id:'slot',   label:'🎰 Bandit'});
     if (r === 'staff'  || r === 'admin') panels.push({id:'staff',  label:'♦ Staff'});
     if (r === 'staff'  || r === 'admin') panels.push({id:'chips',  label:'⬡ Chips'});
     if (r === 'admin')                   panels.push({id:'admin',  label:'♣ Admin'});
@@ -601,6 +660,7 @@ window.onload = function() {
 
   function loadPanel(id) {
     if (id === 'player') loadPlayerPanel();
+    if (id === 'slot')   loadSlotPanel();
     if (id === 'staff')  loadStaffPanel();
     if (id === 'chips')  loadChipsPanel();
     if (id === 'admin')  loadAdminPanel();
@@ -1124,6 +1184,156 @@ window.onload = function() {
   }
 
   // ════════════════════════════════════════════════════
+  //  SLOT PANEL
+  // ════════════════════════════════════════════════════
+
+  var slotSession  = null;
+  var slotRtChan   = null;
+  var slotLastStat = null;
+
+  function loadSlotPanel() {
+    try { var last = localStorage.getItem('slot_last_code'); if(last) document.getElementById('slot-code-input').value = last; } catch(_){}
+    if (slotSession) {
+      showSlotConnected(slotSession);
+    } else {
+      document.getElementById('slot-idle-view').style.display      = 'block';
+      document.getElementById('slot-connected-view').style.display = 'none';
+    }
+  }
+
+  function showSlotConnected(sess) {
+    slotSession = sess;
+    document.getElementById('slot-idle-view').style.display      = 'none';
+    document.getElementById('slot-connected-view').style.display = 'block';
+    document.getElementById('slot-table-label').textContent = 'Tisch ' + (sess.table_code || '—');
+    renderSlotStatus(sess);
+  }
+
+  function showSlotIdle() {
+    slotSession  = null;
+    slotLastStat = null;
+    document.getElementById('slot-idle-view').style.display      = 'block';
+    document.getElementById('slot-connected-view').style.display = 'none';
+    document.getElementById('slot-result-card').style.display    = 'none';
+  }
+
+  function renderSlotStatus(s) {
+    if (!s) return;
+    var icon = document.getElementById('slot-status-icon');
+    var text = document.getElementById('slot-status-text');
+    var rc   = document.getElementById('slot-result-card');
+
+    if (s.player_balance != null) {
+      document.getElementById('slot-conn-balance').textContent = chips(s.player_balance);
+      currentUser.balance = s.player_balance;
+      var pb = document.getElementById('player-balance');
+      if (pb) pb.textContent = chips(s.player_balance);
+    }
+
+    if (s.status === 'spinning') {
+      icon.textContent     = '🎰';
+      icon.style.animation = 'slotSpin .4s linear infinite';
+      text.textContent     = 'Walzen drehen…';
+      text.style.color     = 'var(--gold)';
+      rc.style.display     = 'none';
+      slotLastStat = 'spinning';
+      return;
+    }
+
+    icon.style.animation = '';
+
+    if (s.status === 'result' && s.symbols && s.symbols.length) {
+      var isWin = s.win_amount > 0;
+      icon.textContent  = isWin ? '🏆' : '😅';
+      text.textContent  = isWin ? 'Gewonnen!' : 'Verloren…';
+      text.style.color  = isWin ? 'var(--green2)' : 'var(--muted)';
+      document.getElementById('slot-result-syms').textContent  = s.symbols.join('  ');
+      document.getElementById('slot-result-label').textContent = isWin ? 'GEWONNEN!' : 'Kein Gewinn';
+      document.getElementById('slot-result-label').style.color = isWin ? 'var(--gold2)' : 'var(--muted)';
+      document.getElementById('slot-result-amt').textContent   = isWin ? '+' + chips(s.win_amount) : '';
+      document.getElementById('slot-result-amt').style.color   = 'var(--green2)';
+      rc.style.display = 'block';
+      if (slotLastStat !== 'result') {
+        if (isWin) toast(s.symbols.join('') + '  Gewonnen: ' + chips(s.win_amount) + '! 🏆', 'success');
+        else       toast(s.symbols.join('') + '  Leider verloren.', 'error');
+      }
+      slotLastStat = 'result';
+    } else {
+      icon.textContent     = '🎰';
+      icon.style.animation = '';
+      text.textContent     = 'Warte auf Spin…';
+      text.style.color     = '';
+      rc.style.display     = 'none';
+      slotLastStat = 'idle';
+    }
+  }
+
+  async function slotJoin() {
+    var code = document.getElementById('slot-code-input').value.trim().toUpperCase();
+    if (!code) return toast('Bitte Tisch-Code eingeben.', 'error');
+    var btn = document.getElementById('slot-join-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Verbinde…';
+    try {
+      var sRes = await sb.from('slot_sessions').select('*').eq('table_code', code).maybeSingle();
+      if (!sRes.data) throw new Error('Tisch "' + code + '" nicht gefunden.');
+      if (sRes.data.player_id && sRes.data.player_id !== currentUser.id) throw new Error('Dieser Tisch ist bereits belegt!');
+      var uRes = await sb.from('users').select('balance').eq('id', currentUser.id).single();
+      var bal  = uRes.data ? uRes.data.balance : currentUser.balance;
+      var upd  = await sb.from('slot_sessions')
+        .update({ player_id: currentUser.id, player_name: currentUser.name, player_balance: bal, status: 'idle', symbols: null, win_amount: 0 })
+        .eq('table_code', code).select().single();
+      if (upd.error) throw upd.error;
+      try { localStorage.setItem('slot_last_code', code); } catch(_){}
+      slotLastStat = null;
+      subscribeSlotRt(code);
+      showSlotConnected(upd.data);
+      toast('Verbunden mit Tisch ' + code + ' 🎰', 'success');
+    } catch(err) {
+      toast(err.message || 'Verbindung fehlgeschlagen.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '🎰 Verbinden';
+    }
+  }
+
+  async function slotLeave() {
+    if (slotRtChan) { sb.removeChannel(slotRtChan); slotRtChan = null; }
+    if (slotSession) {
+      await sb.from('slot_sessions')
+        .update({ player_id: null, player_name: null, player_balance: null, status: 'idle', symbols: null, win_amount: 0 })
+        .eq('table_code', slotSession.table_code);
+    }
+    showSlotIdle();
+    toast('Tisch verlassen.', 'success');
+  }
+
+  function subscribeSlotRt(tableCode) {
+    if (slotRtChan) { sb.removeChannel(slotRtChan); slotRtChan = null; }
+    slotRtChan = sb.channel('slot-ph-' + tableCode + '-' + currentUser.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'slot_sessions', filter: 'table_code=eq.' + tableCode }, function(p) {
+        if (!p.new) return;
+        var d = p.new;
+        if (!d.player_id || d.player_id !== currentUser.id) {
+          if (slotRtChan) { sb.removeChannel(slotRtChan); slotRtChan = null; }
+          showSlotIdle();
+          toast('Vom Tisch getrennt.', 'error'); return;
+        }
+        slotSession = d;
+        if (activePanel() === 'slot') renderSlotStatus(d);
+      })
+      .subscribe();
+  }
+
+  setInterval(function() {
+    if (!slotSession || activePanel() !== 'slot') return;
+    sb.from('slot_sessions').select('*').eq('table_code', slotSession.table_code).maybeSingle().then(function(r) {
+      if (!r.data) return;
+      if (!r.data.player_id || r.data.player_id !== currentUser.id) { showSlotIdle(); return; }
+      slotSession = r.data;
+      renderSlotStatus(slotSession);
+    });
+  }, 3000);
+
+  // ════════════════════════════════════════════════════
   //  ADMIN PANEL
   // ════════════════════════════════════════════════════
 
@@ -1346,10 +1556,15 @@ window.onload = function() {
   document.getElementById('chip-search').addEventListener('input', filterChipUsers);
   document.getElementById('chip-amount').addEventListener('keydown', function(e){
     if (e.key === 'Enter') {
-      // default to "buy" on enter, but only if amount is filled
       if (document.getElementById('chip-amount').value) doChipTransaction('buy');
     }
   });
+
+  // Slot Panel
+  document.getElementById('slot-join-btn').addEventListener('click', slotJoin);
+  document.getElementById('slot-leave-btn').addEventListener('click', slotLeave);
+  document.getElementById('slot-code-input').addEventListener('keydown', function(e){ if(e.key==='Enter') slotJoin(); });
+  document.getElementById('slot-code-input').addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
 
   // Admin tabs
   document.getElementById('sub-tab-games').addEventListener('click',       function(){ switchAdminSub('games'); });
