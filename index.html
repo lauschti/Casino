@@ -1253,11 +1253,8 @@ window.onload = function() {
     var text    = document.getElementById('slot-status-text');
     var rc      = document.getElementById('slot-result-card');
 
-    // Balance display: read from slot_sessions as a convenience.
-    // The REAL source of truth is users.balance, updated via main casino realtime.
-    if (s.player_balance != null) {
-      document.getElementById('slot-conn-balance').textContent = chips(s.player_balance);
-    }
+    // Balance is ONLY updated by the main users-realtime (setupRealtime).
+    // Do NOT touch slot-conn-balance here — that prevents stale overwrites.
 
     if (s.status === 'spinning') {
       icon.style.display    = 'none';
@@ -1360,15 +1357,22 @@ window.onload = function() {
 
   setInterval(function() {
     if (!slotSession || activePanel() !== 'slot') return;
-    sb.from('slot_sessions').select('*').eq('table_code', slotSession.table_code).maybeSingle().then(function(r) {
-      if (!r.data) return;
-      if (!r.data.player_id || r.data.player_id !== currentUser.id) { showSlotIdle(); return; }
-      // During spinning: only update if status changed away from spinning (result arrived)
-      // Never overwrite balance mid-spin — tablet owns it
-      if (slotLastStat === 'spinning' && r.data.status === 'spinning') return;
-      slotSession = r.data;
-      renderSlotStatus(slotSession);
-    });
+    // Always keep balance display in sync with currentUser (avoids stale values)
+    var slotBal = document.getElementById('slot-conn-balance');
+    if (slotBal) slotBal.textContent = chips(currentUser.balance);
+    // Only poll DB for status changes, not balance
+    sb.from('slot_sessions').select('status,symbols,win_amount,player_id')
+      .eq('table_code', slotSession.table_code).maybeSingle().then(function(r) {
+        if (!r.data) return;
+        if (!r.data.player_id || r.data.player_id !== currentUser.id) { showSlotIdle(); return; }
+        // Only re-render if status actually changed
+        if (r.data.status !== slotLastStat) {
+          slotSession.status     = r.data.status;
+          slotSession.symbols    = r.data.symbols;
+          slotSession.win_amount = r.data.win_amount;
+          renderSlotStatus(slotSession);
+        }
+      });
   }, 3000);
 
   // ════════════════════════════════════════════════════
