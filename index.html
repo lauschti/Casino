@@ -634,8 +634,10 @@ window.onload = function() {
     var panels = [];
     if (r === 'player' || r === 'admin') panels.push({id:'player', label:'♠ Mein Tisch'});
     if (r === 'player' || r === 'admin') panels.push({id:'slot',   label:'🎰 Bandit'});
-    if (r === 'staff'  || r === 'admin') panels.push({id:'staff',  label:'♦ Staff'});
-    if (r === 'staff'  || r === 'admin') panels.push({id:'chips',  label:'⬡ Chips'});
+    if (r === 'staff')                   panels.push({id:'staff',  label:'♦ Staff'});
+    if (r === 'staff')                   panels.push({id:'chips',  label:'⬡ Chips'});
+    if (r === 'admin')                   panels.push({id:'staff',  label:'♦ Staff'});
+    if (r === 'admin')                   panels.push({id:'chips',  label:'⬡ Chips'});
     if (r === 'admin')                   panels.push({id:'admin',  label:'♣ Admin'});
     panels.forEach(function(p, i) {
       var btn = document.createElement('button');
