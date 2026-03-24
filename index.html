@@ -295,8 +295,21 @@
       <div class="game-grid" id="player-game-grid"><div class="empty"><div class="empty-icon">🎰</div><p>Wird geladen…</p></div></div>
       <div class="bet-panel" id="bet-panel" style="display:none;">
         <div class="section-header" style="margin-bottom:1rem;"><div class="section-title" id="bet-game-name" style="font-size:1.1rem;">Wette platzieren</div></div>
-        <div class="form-group"><label>Betrag (Chips)</label><input type="number" id="bet-amount" placeholder="Betrag eingeben…" min="1" inputmode="numeric"/></div>
-        <div class="btn-row"><button class="btn btn-gold" id="place-bet-btn">Wetten ♠</button><button class="btn btn-outline" id="cancel-bet-btn">Abbrechen</button></div>
+        <!-- Normal bet UI -->
+        <div id="bet-form-normal">
+          <div class="form-group"><label>Betrag (Chips)</label><input type="number" id="bet-amount" placeholder="Betrag eingeben..." min="1" inputmode="numeric"/></div>
+          <div class="btn-row"><button class="btn btn-gold" id="place-bet-btn">Wetten</button><button class="btn btn-outline" id="cancel-bet-btn">Abbrechen</button></div>
+        </div>
+        <!-- Free Join UI (Poker / Roulette) -->
+        <div id="bet-form-free-join" style="display:none;">
+          <div style="padding:.8rem 1rem;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.18);border-radius:8px;font-size:.75rem;color:var(--muted);line-height:1.6;margin-bottom:1rem;">
+            Chip-System aktiv - kein Einsatz noetig. Einfach beitreten!
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-gold" id="join-round-btn">Beitreten</button>
+            <button class="btn btn-outline" id="cancel-join-btn">Abbrechen</button>
+          </div>
+        </div>
       </div>
       <hr class="divider">
       <div class="section-header"><div class="section-title">Meine Wetten<small>Dein Verlauf</small></div></div>
@@ -315,6 +328,9 @@
             <button class="btn btn-danger btn-sm" id="staff-close-btn">Runde schließen</button>
             <button class="btn btn-success btn-sm" id="staff-reopen-btn" style="display:none;">↺ Zurücksetzen</button>
           </div>
+        </div>
+        <div id="staff-fj-info" style="display:none;padding:.75rem 1rem;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:.74rem;color:var(--muted);line-height:1.6;margin-bottom:1rem;">
+          ♥ <strong style="color:var(--gold)">Freier Beitritt aktiv</strong> — Spieler treten ohne Einsatz bei. Kein Gewinner wird ausgewählt. Runde einfach schließen &amp; zurücksetzen wenn fertig.
         </div>
         <div class="table-wrap"><table><thead><tr><th>Spieler</th><th>Betrag</th><th>Ergebnis</th><th>Aktion</th></tr></thead><tbody id="staff-bets-desk"></tbody></table></div>
         <div class="m-list" id="staff-bets-mob"></div>
@@ -477,6 +493,16 @@
     <button class="modal-close" id="close-create-game-modal">✕</button>
     <div class="modal-title">Neues Spiel</div>
     <div class="form-group"><label>Spielname</label><input type="text" id="new-game-name" placeholder="z.B. Blackjack Tisch #1"/></div>
+    <div class="form-group">
+      <label>Modus</label>
+      <label style="display:flex;align-items:flex-start;gap:.85rem;padding:.9rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+        <input type="checkbox" id="new-game-free-join" style="width:18px;height:18px;margin-top:2px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;"/>
+        <div>
+          <div style="font-size:.82rem;color:var(--text);font-weight:500;">Freier Beitritt <span style="color:var(--gold);font-size:.7rem;">(Poker / Roulette)</span></div>
+          <div style="font-size:.64rem;color:var(--muted);margin-top:.25rem;line-height:1.5;">Spieler treten ohne Chipseinsatz bei. Kein Gewinner — nur Rein &amp; Raus.</div>
+        </div>
+      </label>
+    </div>
     <div class="btn-row"><button class="btn btn-gold" id="create-game-btn">Erstellen</button><button class="btn btn-outline" id="cancel-create-game-btn">Abbrechen</button></div>
   </div>
 </div>
@@ -821,16 +847,18 @@ window.onload = function() {
     grid.innerHTML = games.map(function(g, i) {
       var sel = selectedGame && selectedGame.id === g.id ? ' selected' : '';
       var dis = g.status !== 'open' ? ' disabled' : '';
-      return '<div class="game-card' + sel + dis + '" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '" data-status="' + g.status + '">'
+      var fjLabel = g.free_join ? '<span style="display:block;font-size:.58rem;color:var(--gold);letter-spacing:.1em;margin-top:.3rem;">♥ Freier Beitritt</span>' : '';
+      return '<div class="game-card' + sel + dis + '" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '" data-status="' + g.status + '" data-fj="' + (g.free_join ? '1' : '0') + '">'
         + '<div class="game-icon">' + ICONS[i % ICONS.length] + '</div>'
         + '<div class="game-name">' + esc(g.name) + '</div>'
         + '<span class="badge badge-' + g.status + '">' + g.status + '</span>'
+        + fjLabel
         + '</div>';
     }).join('');
     // Attach click listeners
     grid.querySelectorAll('.game-card:not(.disabled)').forEach(function(card) {
       card.addEventListener('click', function() {
-        selectGame(parseInt(card.dataset.gid), card.dataset.gname);
+        selectGame(parseInt(card.dataset.gid), card.dataset.gname, card.dataset.fj === '1');
       });
     });
   }
@@ -844,25 +872,42 @@ window.onload = function() {
       return;
     }
     desk.innerHTML = bets.map(function(b) {
+      var isFreeJoin = (b.amount === 0);
+      var amtCell = isFreeJoin
+        ? '<span style="color:var(--gold);font-size:.72rem;">♥ Beigetreten</span>'
+        : '<span style="color:var(--gold)">' + chips(b.amount) + '</span>';
+      var resultCell = isFreeJoin
+        ? '<span class="badge badge-pending">In Runde</span>'
+        : '<span class="badge badge-' + b.result + '">' + statusDE(b.result) + '</span>';
       return '<tr><td>' + esc(b.games ? b.games.name : '—') + '</td>'
-        + '<td style="color:var(--gold)">' + chips(b.amount) + '</td>'
-        + '<td><span class="badge badge-' + b.result + '">' + statusDE(b.result) + '</span></td></tr>';
+        + '<td>' + amtCell + '</td>'
+        + '<td>' + resultCell + '</td></tr>';
     }).join('');
     mob.innerHTML = bets.map(function(b) {
+      var isFreeJoin = (b.amount === 0);
       return '<div class="m-card">'
         + '<div class="m-row"><span class="m-label">Spiel</span><span class="m-val">' + esc(b.games ? b.games.name : '—') + '</span></div>'
-        + '<div class="m-row"><span class="m-label">Betrag</span><span class="m-val" style="color:var(--gold)">' + chips(b.amount) + '</span></div>'
-        + '<div class="m-row"><span class="m-label">Ergebnis</span><span class="m-val"><span class="badge badge-' + b.result + '">' + statusDE(b.result) + '</span></span></div>'
+        + '<div class="m-row"><span class="m-label">Betrag</span><span class="m-val">'
+        + (isFreeJoin ? '<span style="color:var(--gold);font-size:.75rem;">♥ Beigetreten</span>' : '<span style="color:var(--gold)">' + chips(b.amount) + '</span>')
+        + '</span></div>'
+        + '<div class="m-row"><span class="m-label">Status</span><span class="m-val">'
+        + (isFreeJoin ? '<span class="badge badge-pending">In Runde</span>' : '<span class="badge badge-' + b.result + '">' + statusDE(b.result) + '</span>')
+        + '</span></div>'
         + '</div>';
     }).join('');
   }
 
-  function selectGame(id, name) {
-    selectedGame = {id:id, name:name};
-    document.getElementById('bet-game-name').textContent = 'Wette auf: ' + name;
+  function selectGame(id, name, freeJoin) {
+    selectedGame = {id:id, name:name, free_join: freeJoin};
+    document.getElementById('bet-game-name').textContent = freeJoin ? name + ' ♥' : 'Wette auf: ' + name;
     document.getElementById('bet-panel').style.display = 'block';
-    document.getElementById('bet-amount').value = '';
-    document.getElementById('bet-amount').focus();
+    // Toggle between normal bet UI and free-join UI
+    document.getElementById('bet-form-normal').style.display    = freeJoin ? 'none' : 'block';
+    document.getElementById('bet-form-free-join').style.display = freeJoin ? 'block' : 'none';
+    if (!freeJoin) {
+      document.getElementById('bet-amount').value = '';
+      document.getElementById('bet-amount').focus();
+    }
     document.querySelectorAll('#player-game-grid .game-card').forEach(function(c) {
       c.classList.toggle('selected', parseInt(c.dataset.gid) === id);
     });
@@ -870,6 +915,20 @@ window.onload = function() {
   }
 
   function cancelBet() {
+    selectedGame = null;
+    document.getElementById('bet-panel').style.display = 'none';
+    loadPlayerPanel();
+  }
+
+  async function joinRound() {
+    if (!selectedGame || !selectedGame.free_join) return;
+    // Check if already in this round
+    var check = await sb.from('bets').select('id').eq('user_id', currentUser.id).eq('game_id', selectedGame.id).eq('result', 'pending').maybeSingle();
+    if (check.data) return toast('Du bist bereits in dieser Runde!', 'error');
+    // Insert a 0-amount bet as "participation marker"
+    var r = await sb.from('bets').insert({user_id: currentUser.id, game_id: selectedGame.id, amount: 0, result: 'pending'});
+    if (r.error) return toast(r.error.message, 'error');
+    toast('♥ Runde beigetreten: ' + selectedGame.name, 'success');
     selectedGame = null;
     document.getElementById('bet-panel').style.display = 'none';
     loadPlayerPanel();
@@ -927,23 +986,28 @@ window.onload = function() {
     if (!games.length) { grid.innerHTML = '<div class="empty"><div class="empty-icon">🎰</div><p>Noch keine Spiele. Admin fragen.</p></div>'; return; }
     grid.innerHTML = games.map(function(g, i) {
       var sel = staffSelectedGame && staffSelectedGame.id === g.id ? ' selected' : '';
-      return '<div class="game-card' + sel + '" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '" data-status="' + g.status + '">'
+      var fjLabel = g.free_join ? '<span style="display:block;font-size:.58rem;color:var(--gold);letter-spacing:.1em;margin-top:.3rem;">♥ Freier Beitritt</span>' : '';
+      return '<div class="game-card' + sel + '" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '" data-status="' + g.status + '" data-fj="' + (g.free_join ? '1' : '0') + '">'
         + '<div class="game-icon">' + ICONS[i % ICONS.length] + '</div>'
         + '<div class="game-name">' + esc(g.name) + '</div>'
         + '<span class="badge badge-' + g.status + '">' + g.status + '</span>'
+        + fjLabel
         + '</div>';
     }).join('');
     grid.querySelectorAll('.game-card').forEach(function(card) {
       card.addEventListener('click', function() {
-        staffSelectGame(parseInt(card.dataset.gid), card.dataset.gname, card.dataset.status);
+        staffSelectGame(parseInt(card.dataset.gid), card.dataset.gname, card.dataset.status, card.dataset.fj === '1');
       });
     });
   }
 
-  async function staffSelectGame(id, name, status) {
-    staffSelectedGame = {id:id, name:name, status:status};
-    document.getElementById('staff-game-name').textContent = name;
+  async function staffSelectGame(id, name, status, freeJoin) {
+    staffSelectedGame = {id:id, name:name, status:status, free_join: freeJoin};
+    document.getElementById('staff-game-name').textContent = name + (freeJoin ? ' ♥' : '');
     document.getElementById('staff-round-panel').style.display = 'block';
+    // Show/hide free-join info banner
+    var fjInfo = document.getElementById('staff-fj-info');
+    if (fjInfo) fjInfo.style.display = freeJoin ? 'block' : 'none';
     updateCloseBtn(status);
     await loadStaffBets(id);
     setTimeout(function(){ document.getElementById('staff-round-panel').scrollIntoView({behavior:'smooth', block:'nearest'}); }, 60);
@@ -972,8 +1036,8 @@ window.onload = function() {
     var mob  = document.getElementById('staff-bets-mob');
 
     if (!bets.length) {
-      desk.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">Keine Wetten für dieses Spiel.</td></tr>';
-      mob.innerHTML  = '<div class="empty"><div class="empty-icon">🃏</div><p>Keine Wetten für dieses Spiel.</p></div>';
+      desk.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">♥ Noch keine Teilnehmer.</td></tr>';
+      mob.innerHTML  = '<div class="empty"><div class="empty-icon">🃏</div><p>Noch keine Teilnehmer in dieser Runde.</p></div>';
       return;
     }
 
@@ -1009,6 +1073,8 @@ window.onload = function() {
   }
 
   function betActionDesk(b, status) {
+    // Free-join participant (amount=0): no winner/loser action
+    if (b.amount === 0) return '<span style="color:var(--gold);font-size:.7rem;">♥ Beigetreten</span>';
     if (b.result !== 'pending') return '<span style="color:var(--muted)">—</span>';
     if (status !== 'closed')    return '<span style="color:var(--muted);font-size:.7rem">Runde zuerst schließen</span>';
     return '<div style="display:flex;gap:.4rem;">'
@@ -1018,6 +1084,8 @@ window.onload = function() {
   }
 
   function betActionMob(b, status) {
+    // Free-join participant (amount=0): no winner/loser action
+    if (b.amount === 0) return '<p style="margin-top:.6rem;font-size:.72rem;color:var(--gold);">♥ Freier Beitritt — kein Einsatz</p>';
     if (b.result !== 'pending') return '';
     if (status !== 'closed') return '<p style="margin-top:.75rem;font-size:.7rem;color:var(--muted)">Runde schließen für Ergebnis</p>';
     return '<div class="m-actions">'
@@ -1454,13 +1522,18 @@ window.onload = function() {
       return;
     }
     desk.innerHTML = games.map(function(g) {
+      var fjBadge = g.free_join
+        ? ' <span class="badge" style="background:rgba(201,168,76,.15);color:var(--gold);border:1px solid var(--gold-dim);">♥ Freier Beitritt</span>'
+        : '';
       return '<tr>'
-        + '<td>' + esc(g.name) + '</td>'
+        + '<td>' + esc(g.name) + fjBadge + '</td>'
         + '<td><span class="badge badge-' + g.status + '">' + (g.status === 'open' ? 'Offen' : 'Geschlossen') + '</span></td>'
         + '<td><div style="display:flex;gap:.4rem;flex-wrap:wrap;">'
         + (g.status === 'closed'
             ? '<button class="btn btn-success btn-xs" data-action="reopen" data-gid="' + g.id + '">Wieder öffnen</button>'
             : '<button class="btn btn-danger  btn-xs" data-action="close"  data-gid="' + g.id + '">Schließen</button>')
+        + '<button class="btn btn-outline btn-xs" data-action="toggle-fj" data-gid="' + g.id + '" data-fj="' + (g.free_join ? '1' : '0') + '" style="' + (g.free_join ? 'border-color:var(--gold-dim);color:var(--gold);' : '') + '">'
+        + (g.free_join ? '♥ Freier Beitritt' : '□ Normal') + '</button>'
         + '<button class="btn btn-outline btn-xs" data-action="delete" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '">Löschen</button>'
         + '</div></td></tr>';
     }).join('');
@@ -1468,10 +1541,14 @@ window.onload = function() {
       return '<div class="m-card">'
         + '<div class="m-row"><span class="m-label">Spiel</span><span class="m-val">' + esc(g.name) + '</span></div>'
         + '<div class="m-row"><span class="m-label">Status</span><span class="m-val"><span class="badge badge-' + g.status + '">' + (g.status === 'open' ? 'Offen' : 'Geschlossen') + '</span></span></div>'
+        + '<div class="m-row"><span class="m-label">Modus</span><span class="m-val" style="font-size:.75rem;color:' + (g.free_join ? 'var(--gold)' : 'var(--muted)') + '">'
+        + (g.free_join ? '♥ Freier Beitritt (Poker/Roulette)' : 'Normal (Wetten)') + '</span></div>'
         + '<div class="m-actions">'
         + (g.status === 'closed'
             ? '<button class="btn btn-success btn-sm" data-action="reopen" data-gid="' + g.id + '">Wieder öffnen</button>'
             : '<button class="btn btn-danger  btn-sm" data-action="close"  data-gid="' + g.id + '">Schließen</button>')
+        + '<button class="btn btn-outline btn-sm" data-action="toggle-fj" data-gid="' + g.id + '" data-fj="' + (g.free_join ? '1' : '0') + '" style="' + (g.free_join ? 'border-color:var(--gold-dim);color:var(--gold);' : '') + '">'
+        + (g.free_join ? '♥ Freier Beitritt' : '□ Normal') + '</button>'
         + '<button class="btn btn-outline btn-sm" data-action="delete" data-gid="' + g.id + '" data-gname="' + esc(g.name) + '">Löschen</button>'
         + '</div></div>';
     }).join('');
@@ -1480,9 +1557,10 @@ window.onload = function() {
       el.querySelectorAll('[data-action]').forEach(function(btn) {
         btn.addEventListener('click', function() {
           var a = btn.dataset.action, gid = parseInt(btn.dataset.gid);
-          if (a === 'close')  setGameStatus(gid, 'closed');
-          if (a === 'reopen') setGameStatus(gid, 'open');
-          if (a === 'delete') deleteGame(gid, btn.dataset.gname);
+          if (a === 'close')     setGameStatus(gid, 'closed');
+          if (a === 'reopen')    setGameStatus(gid, 'open');
+          if (a === 'delete')    deleteGame(gid, btn.dataset.gname);
+          if (a === 'toggle-fj') toggleFreeJoin(gid, btn.dataset.fj === '1');
         });
       });
     });
@@ -1524,18 +1602,28 @@ window.onload = function() {
   }
 
   async function createGame() {
-    var name = document.getElementById('new-game-name').value.trim();
+    var name     = document.getElementById('new-game-name').value.trim();
+    var freeJoin = document.getElementById('new-game-free-join').checked;
     if (!name) return toast('Bitte Spielname eingeben.', 'error');
-    var res = await sb.from('games').insert({name:name, status:'open'});
+    var res = await sb.from('games').insert({name:name, status:'open', free_join: freeJoin});
     if (res.error) return toast(res.error.message, 'error');
-    toast('"' + name + '" erstellt!', 'success');
+    toast('"' + name + '" erstellt' + (freeJoin ? ' (Freier Beitritt)' : '') + '!', 'success');
     document.getElementById('new-game-name').value = '';
+    document.getElementById('new-game-free-join').checked = false;
     closeModal('modal-create-game');
     loadAdminGames();
   }
 
   async function setGameStatus(id, status) {
     await sb.from('games').update({status:status}).eq('id', id);
+    loadAdminGames();
+  }
+
+  async function toggleFreeJoin(id, currentlyFree) {
+    var newVal = !currentlyFree;
+    var res = await sb.from('games').update({free_join: newVal}).eq('id', id);
+    if (res.error) return toast(res.error.message, 'error');
+    toast(newVal ? '♥ Freier Beitritt aktiviert!' : 'Normaler Modus aktiviert!', 'success');
     loadAdminGames();
   }
 
@@ -1589,6 +1677,8 @@ window.onload = function() {
   // Bet panel
   document.getElementById('place-bet-btn').addEventListener('click', placeBet);
   document.getElementById('cancel-bet-btn').addEventListener('click', cancelBet);
+  document.getElementById('join-round-btn').addEventListener('click', joinRound);
+  document.getElementById('cancel-join-btn').addEventListener('click', cancelBet);
 
   // Staff close/reopen round
   document.getElementById('staff-close-btn').addEventListener('click', closeRound);
